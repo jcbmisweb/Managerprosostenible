@@ -40,7 +40,7 @@ service cloud.firestore {
 
     function isAdmin() {
       return isSignedIn() && (
-        request.auth.token.email.lower() in ["juan.codina@murciaeduca.es"] ||
+        request.auth.token.email.lower() in ["juan.codina@murciaeduca.es", "jcbmisweb@gmail.com"] ||
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
          getUserData(request.auth.uid).role == 'admin' && 
          getUserData(request.auth.uid).status != 'suspended')
@@ -110,21 +110,21 @@ service cloud.firestore {
       allow create: if isSignedIn() && isOwner(uid) && 
                       isValidUser(incoming()) && (
                         (incoming().role == 'student' && incoming().status == 'pending') ||
-                        (request.auth.token.email.lower() in ["juan.codina@murciaeduca.es"] && 
+                        (request.auth.token.email.lower() in ["juan.codina@murciaeduca.es", "jcbmisweb@gmail.com"] && 
                          incoming().role == 'admin' && incoming().status == 'approved')
                       );
       
       allow update: if isSignedIn() && (
         // Root Admins
-        request.auth.token.email.lower() in ["juan.codina@murciaeduca.es"] ||
+        request.auth.token.email.lower() in ["juan.codina@murciaeduca.es", "jcbmisweb@gmail.com"] ||
         // Assistant/Admin management
-        (isAssistant() && !(existing().email.lower() in ["juan.codina@murciaeduca.es"]) && isValidUser(incoming())) ||
+        (isAssistant() && !(existing().email.lower() in ["juan.codina@murciaeduca.es", "jcbmisweb@gmail.com"]) && isValidUser(incoming())) ||
         // User updating their own profile (limited fields)
         (isOwner(uid) && isValidUser(incoming()) && 
          incoming().diff(existing()).affectedKeys().hasOnly(['projectId', 'displayName', 'photoURL', 'impersonatingUid', 'lastLogin', 'classroomId', 'status']))
       );
       
-      allow delete: if isAdmin() && !(existing().email.lower() in ["juan.codina@murciaeduca.es"]);
+      allow delete: if isAdmin() && !(existing().email.lower() in ["juan.codina@murciaeduca.es", "jcbmisweb@gmail.com"]);
     }
 
     // Projects Collection

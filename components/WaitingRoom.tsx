@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Clock, LogOut, ArrowRight, Loader2, BookOpen, Users } from 'lucide-react';
-import { db, collection, query, where, getDocs, updateDoc, doc, OperationType, handleFirestoreError } from '../firebase';
+import { db, collection, query, where, getDocs, updateDoc, doc, getDoc, OperationType, handleFirestoreError } from '../firebase';
 
 export const WaitingRoom: React.FC = () => {
   const { logout, profile } = useAuth();
@@ -21,7 +21,16 @@ export const WaitingRoom: React.FC = () => {
       if (snap.empty) {
         throw new Error("Código de aula no encontrado.");
       }
-      const classroom = snap.docs[0].data();
+      
+      const classroomDoc = snap.docs[0];
+      const classroom = classroomDoc.data();
+      
+      // Comprobación de existencia real de la clase por ID antes de vincular
+      const realClassSnap = await getDoc(doc(db, 'classrooms', classroom.id));
+      if (!realClassSnap.exists()) {
+        throw new Error("El aula no tiene existencia real en el sistema.");
+      }
+      
       await updateDoc(doc(db, 'users', profile.uid), {
         classroomId: classroom.id,
         status: 'approved'
@@ -45,6 +54,15 @@ export const WaitingRoom: React.FC = () => {
         throw new Error("Código de proyecto no encontrado.");
       }
       const project = snap.docs[0].data();
+      
+      // Comprobación de existencia real de la clase asociada al proyecto antes de vincular
+      if (project.classroomId) {
+        const realClassSnap = await getDoc(doc(db, 'classrooms', project.classroomId));
+        if (!realClassSnap.exists()) {
+          throw new Error("El aula vinculada a este proyecto no existe en el sistema.");
+        }
+      }
+      
       await updateDoc(doc(db, 'users', profile.uid), {
         projectId: project.id,
         classroomId: project.classroomId || null,

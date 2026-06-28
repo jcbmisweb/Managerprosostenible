@@ -89,9 +89,7 @@ const AppContent = () => {
       case 'assistant':
         return <ProfessorDashboard />;
       case 'student':
-        if (!profile?.classroomId) return <WaitingRoom />;
-        if (!profile?.projectId) return <ProjectAccess />;
-        return <Dashboard />;
+        return <StudentDashboard />;
       default:
         return <WaitingRoom />;
     }
@@ -106,9 +104,9 @@ const AppContent = () => {
       ) : profile?.status === 'suspended' ? (
         <SuspendedAccount />
       ) : !profile?.classroomId && profile?.role === 'student' ? (
-        <WaitingRoom />
+        <StudentDashboard />
       ) : !profile?.projectId && profile?.role === 'student' ? (
-        <ProjectAccess />
+        <StudentDashboard />
       ) : projectLoading ? (
         <div className="min-h-screen flex items-center justify-center bg-gray-50">
           <div className="text-center">

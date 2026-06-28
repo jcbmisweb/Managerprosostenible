@@ -29,6 +29,7 @@ interface UserProfile {
   impersonatingUid?: string | null;
   adminEditMode?: boolean; // New field
   classroomId?: string | null;
+  lastLogin?: string;
 }
 
 interface AuthContextType {
@@ -47,7 +48,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const ADMIN_EMAILS = ['juan.codina@murciaeduca.es'];
+const ADMIN_EMAILS = ['juan.codina@murciaeduca.es', 'jcbmisweb@gmail.com'];
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<FirebaseUser | null>(null);
