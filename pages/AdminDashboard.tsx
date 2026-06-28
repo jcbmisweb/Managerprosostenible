@@ -85,6 +85,7 @@ export const AdminDashboard: React.FC = () => {
   const [viewMode, setViewMode] = useState<'admin' | 'professor' | 'student'>('admin');
   const [searchTerm, setSearchTerm] = useState('');
   const [newClassroomName, setNewClassroomName] = useState('');
+  const [newClassroomProfessor, setNewClassroomProfessor] = useState('');
   const [creatingClassroom, setCreatingClassroom] = useState(false);
   const [classroomsError, setClassroomsError] = useState<string | null>(null);
   const [filterClassroomId, setFilterClassroomId] = useState<string | null>(null);
@@ -305,7 +306,7 @@ export const AdminDashboard: React.FC = () => {
         id: classroomId,
         name: newClassroomName.trim(),
         code,
-        professorId: realProfile.uid,
+        professorId: newClassroomProfessor || realProfile.uid,
         createdAt: new Date().toISOString()
       };
       
@@ -317,6 +318,7 @@ export const AdminDashboard: React.FC = () => {
       await Promise.race([setDocPromise, timeoutPromise]);
       
       setNewClassroomName('');
+      setNewClassroomProfessor('');
       logAction('CLASSROOM_CREATED', { id: classroomId, name: newClassroom.name, code });
     } catch (err: any) {
       console.error("Error creating classroom:", err);
@@ -592,8 +594,18 @@ export const AdminDashboard: React.FC = () => {
                     placeholder="Nombre de la nueva clase o aula..."
                     value={newClassroomName}
                     onChange={(e) => setNewClassroomName(e.target.value)}
-                    className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all font-medium text-sm"
+                    className="flex-[2] px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all font-medium text-sm"
                   />
+                  <select
+                    value={newClassroomProfessor}
+                    onChange={(e) => setNewClassroomProfessor(e.target.value)}
+                    className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all font-medium text-sm text-slate-700"
+                  >
+                    <option value="">-- Sin asignar (Tú) --</option>
+                    {allUsers.filter(u => u.role === 'assistant' || u.role === 'admin').map(u => (
+                      <option key={u.uid} value={u.uid}>{u.displayName || u.email}</option>
+                    ))}
+                  </select>
                   <button
                     type="submit"
                     disabled={creatingClassroom || !newClassroomName.trim()}

@@ -67,15 +67,12 @@ interface ProjectSummary {
 export const ProfessorDashboard: React.FC = () => {
   const { profile, realProfile, logout } = useAuth();
   const [classrooms, setClassrooms] = useState<Classroom[]>([]);
-  const [classroomsError, setClassroomsError] = useState<string | null>(null);
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
   const [allProjects, setAllProjects] = useState<ProjectSummary[]>([]);
   
   // Tab states and filtering
   const [activeTab, setActiveTab] = useState<'classrooms' | 'users' | 'projects' | 'evaluations'>('classrooms');
   const [searchTerm, setSearchTerm] = useState('');
-  const [newClassroomName, setNewClassroomName] = useState('');
-  const [creatingClassroom, setCreatingClassroom] = useState(false);
   const [filterClassroomId, setFilterClassroomId] = useState<string | null>(null);
 
   const isSuperAdmin = realProfile?.role === 'admin';
@@ -127,41 +124,6 @@ export const ProfessorDashboard: React.FC = () => {
 
     return () => unsubscribe();
   }, [myUid]);
-
-  // Classroom creation handler
-  const handleCreateClassroom = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newClassroomName.trim() || !myUid) return;
-    setCreatingClassroom(true);
-    setClassroomsError(null);
-    try {
-      const classroomId = doc(collection(db, 'classrooms')).id;
-      const code = Math.random().toString(36).substring(2, 8).toUpperCase();
-      
-      const newClassroom: Classroom = {
-        id: classroomId,
-        name: newClassroomName.trim(),
-        code,
-        professorId: myUid,
-        createdAt: new Date().toISOString()
-      };
-      
-      const setDocPromise = setDoc(doc(db, 'classrooms', classroomId), newClassroom);
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error("La operación tardó demasiado. Comprueba tu conexión a internet.")), 10000)
-      );
-      
-      await Promise.race([setDocPromise, timeoutPromise]);
-      
-      setNewClassroomName('');
-      logAction('CLASSROOM_CREATED', { id: classroomId, name: newClassroom.name, code });
-    } catch (err: any) {
-      console.error("Error creating classroom:", err);
-      setClassroomsError(err.message || "Error al crear el aula");
-    } finally {
-      setCreatingClassroom(false);
-    }
-  };
 
   // Classroom deletion (Restricted to Admins, or showing disabled state for Assistant)
   const handleDeleteClassroom = async (classroomId: string) => {
@@ -471,49 +433,14 @@ export const ProfessorDashboard: React.FC = () => {
       {/* Classroom Tab */}
       {activeTab === 'classrooms' && (
         <div className="space-y-8">
-          {/* Create classroom Form */}
-          <div className="bg-white rounded-3xl border border-slate-100 p-8 shadow-sm">
-            <h3 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2 mb-2">
-              <BookOpen className="text-emerald-500" />
-              Crear una Nueva Aula de Clase
-            </h3>
-            <p className="text-slate-500 text-sm mb-6">Elige un nombre descriptivo para agrupar a tus estudiantes y organizar sus proyectos.</p>
-            
-            <form onSubmit={handleCreateClassroom} className="flex flex-col gap-3">
-              {classroomsError && (
-                <p className="text-red-500 text-xs font-bold bg-red-50 border border-red-100 p-3 rounded-xl mb-2">
-                  {classroomsError}
-                </p>
-              )}
-              <div className="flex flex-col sm:flex-row gap-3">
-                <input
-                  type="text"
-                  required
-                  placeholder="Nombre de la nueva clase o aula..."
-                  value={newClassroomName}
-                  onChange={(e) => setNewClassroomName(e.target.value)}
-                  className="flex-1 px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all font-medium text-sm"
-                />
-                <button
-                  type="submit"
-                  disabled={creatingClassroom || !newClassroomName.trim()}
-                  className="bg-slate-900 text-white hover:bg-slate-800 px-6 py-3.5 rounded-xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all disabled:opacity-50"
-                >
-                  <Plus size={16} />
-                  Crear Aula
-                </button>
-              </div>
-            </form>
-          </div>
-
           {/* List Classrooms */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {classrooms.length === 0 ? (
               <div className="col-span-full py-20 text-center bg-white rounded-3xl border border-slate-100 shadow-sm">
                 <GraduationCap className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-                <h4 className="text-lg font-bold text-slate-900 mb-1">No tienes aulas creadas todavía</h4>
+                <h4 className="text-lg font-bold text-slate-900 mb-1">No tienes aulas asignadas todavía</h4>
                 <p className="text-slate-500 text-sm max-w-sm mx-auto">
-                  Crea tu primera aula de clase usando el formulario de arriba para organizar a tus estudiantes.
+                  Solicita a un administrador que te asigne tus aulas de clase correspondientes.
                 </p>
               </div>
             ) : (
