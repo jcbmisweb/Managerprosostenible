@@ -121,7 +121,7 @@ service cloud.firestore {
         (isAssistant() && !(existing().email.lower() in ["juan.codina@murciaeduca.es"]) && isValidUser(incoming())) ||
         // User updating their own profile (limited fields)
         (isOwner(uid) && isValidUser(incoming()) && 
-         incoming().diff(existing()).affectedKeys().hasOnly(['projectId', 'displayName', 'photoURL', 'impersonatingUid', 'lastLogin']))
+         incoming().diff(existing()).affectedKeys().hasOnly(['projectId', 'displayName', 'photoURL', 'impersonatingUid', 'lastLogin', 'classroomId', 'status']))
       );
       
       allow delete: if isAdmin() && !(existing().email.lower() in ["juan.codina@murciaeduca.es"]);

@@ -33,7 +33,9 @@ import {
   Scale,
   BookOpen,
   Plus,
-  GraduationCap
+  GraduationCap,
+  Calendar,
+  X
 } from 'lucide-react';
 import { TeamMember, PeerReview, Classroom } from '../types';
 
@@ -47,6 +49,7 @@ interface UserProfile {
   projectId?: string;
   impersonatingUid?: string | null;
   classroomId?: string | null;
+  lastLogin?: string;
 }
 
 interface ProjectSummary {
@@ -392,7 +395,7 @@ export const AdminDashboard: React.FC = () => {
     const isInMyClassroom = u.classroomId && myClassroomIds.includes(u.classroomId);
     const isPendingStudent = u.status === 'pending' && u.role === 'student';
     return isInMyClassroom || isPendingStudent || u.uid === realProfile?.uid;
-  });
+  }).sort((a, b) => a.displayName.localeCompare(b.displayName));
 
   // Detect duplicate accounts (same email, different UID)
   const duplicateEmails = allUsers.reduce((acc: {[email: string]: number}, user) => {
@@ -752,169 +755,204 @@ export const AdminDashboard: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredUsers.length === 0 ? (
-              <div className="col-span-full py-20 text-center bg-white rounded-3xl border-2 border-dashed border-slate-200">
-                <Users className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-                <p className="text-slate-500 font-medium">No se encontraron usuarios.</p>
-              </div>
-            ) : (
-              filteredUsers.map((user) => (
-                <div key={user.uid} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-all flex flex-col">
-                  <div className="flex items-center gap-4 mb-4">
-                    <img src={user.photoURL} alt="" className="w-12 h-12 rounded-full border-2 border-slate-100" />
-                    <div className="overflow-hidden flex-1">
-                      <h3 className="font-bold text-slate-900 truncate">{user.displayName}</h3>
-                      <p className="text-xs text-slate-500 truncate">{user.email}</p>
-                      {duplicateEmails[user.email.toLowerCase().trim()] > 1 && (
-                        <p className="text-[10px] text-red-500 font-bold flex items-center gap-1 mt-0.5">
-                          <AlertCircle size={10} /> Cuenta Duplicada (Email repetido)
-                        </p>
-                      )}
-                      {filterClassroomId && (
-                        <button
-                          onClick={() => handleAssignClassroom(user.uid, null)}
-                          className="mt-2 text-[10px] text-red-500 font-bold hover:text-red-700 flex items-center gap-1"
-                        >
-                          <Trash2 size={10} /> Desvincular del aula
-                        </button>
-                      )}
-                      {allProjects.find(p => p.team.some(m => m.id === user.uid)) && (
-                        <button
-                          onClick={() => {
-                            setActiveTab('projects');
-                          }}
-                          className="mt-2 w-full flex items-center justify-center gap-2 bg-slate-900 text-white py-2 rounded-xl text-xs font-bold hover:bg-slate-800 transition-all"
-                        >
-                          <LayoutDashboard className="w-3 h-3" />
-                          Ver Proyecto
-                        </button>
-                      )}
-                    </div>
-                    {user.status === 'approved' ? (
-                      <CheckCircle className="w-5 h-5 text-emerald-500 shrink-0" />
-                    ) : user.status === 'suspended' ? (
-                      <PauseCircle className="w-5 h-5 text-amber-500 shrink-0" />
-                    ) : (
-                      <Clock className="w-5 h-5 text-amber-500 shrink-0" />
-                    )}
-                  </div>
-
-                    <div className="mb-4">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Rol del Usuario</label>
-                      <div className="flex gap-1">
-                        {(['student', 'assistant', 'admin'] as const).map((role) => {
-                          const isRootUser = isRootAdmin(user.email);
-                          return (
-                            <button
-                              key={role}
-                              disabled={!canManageUsers || user.uid === realProfile?.uid || isRootUser}
-                              onClick={() => handleRoleChange(user.uid, role)}
-                              className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold transition-all ${
-                                user.role === role 
-                                  ? 'bg-slate-900 text-white shadow-sm' 
-                                  : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
-                              } disabled:opacity-40 disabled:cursor-not-allowed`}
-                            >
-                              {role === 'admin' ? 'ADMIN' : role === 'assistant' ? 'ASISTENTE' : 'ALUMNO'}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    <div className="mb-4">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Aula Asignada</label>
-                      <select
-                        disabled={!canManageUsers || isRootAdmin(user.email)}
-                        value={user.classroomId || ''}
-                        onChange={(e) => handleAssignClassroom(user.uid, e.target.value || null)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-lg py-1.5 px-3 text-[11px] font-bold text-slate-700 outline-none focus:ring-2 focus:ring-emerald-500 transition-all disabled:opacity-50"
-                      >
-                        <option value="">-- Sin Aula --</option>
-                        {classrooms.map((c) => (
-                          <option key={c.id} value={c.id}>{c.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                  
-                  <div className="mt-auto flex gap-2">
-                    {user.status === 'pending' ? (
-                      <div className="flex-1 flex gap-2">
-                        <button
-                          onClick={() => approveUser(user.uid)}
-                          disabled={!canManageUsers}
-                          className="flex-1 flex items-center justify-center gap-2 bg-emerald-600 text-white py-2.5 rounded-xl text-xs font-bold hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-900/20 disabled:opacity-50"
-                        >
-                          <CheckCircle className="w-4 h-4" />
-                          Activar Cuenta
-                        </button>
-                        <button
-                          onClick={() => rejectUser(user.uid)}
-                          disabled={!canManageUsers}
-                          className="px-4 flex items-center justify-center bg-slate-100 text-slate-400 py-2.5 rounded-xl hover:bg-red-500 hover:text-white transition-all disabled:opacity-50"
-                          title="Rechazar"
-                        >
-                          <XCircle className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col gap-2 w-full">
-                        <div className="flex gap-2 w-full">
-                          {!isRootAdmin(user.email) && (
-                            <button
-                              onClick={() => impersonateUser(user.uid)}
-                              className="flex-1 flex items-center justify-center gap-2 bg-blue-50 text-blue-600 py-2 rounded-xl text-xs font-bold hover:bg-blue-600 hover:text-white transition-all"
-                            >
-                              <Ghost className="w-4 h-4" />
-                              Suplantar
-                            </button>
-                          )}
-                          {canManageUsers && user.uid !== realProfile?.uid && !isRootAdmin(user.email) && (
-                            <div className="flex gap-1">
-                              <button
-                                onClick={() => suspendUser(user.uid, user.status)}
-                                title={user.status === 'suspended' ? "Activar cuenta" : "Suspender cuenta"}
-                                className={`w-10 flex items-center justify-center py-2 rounded-xl transition-all ${
-                                  user.status === 'suspended' 
-                                    ? 'bg-amber-100 text-amber-600 hover:bg-emerald-100 hover:text-emerald-600' 
-                                    : 'bg-slate-50 text-slate-400 hover:bg-amber-50 hover:text-amber-600'
-                                }`}
-                              >
-                                {user.status === 'suspended' ? <PlayCircle className="w-4 h-4" /> : <PauseCircle className="w-4 h-4" />}
-                              </button>
-                              <button
-                                onClick={() => resetUser(user)}
-                                title="Liberar para nuevo proyecto"
-                                className="w-10 flex items-center justify-center bg-blue-50 text-blue-600 py-2 rounded-xl hover:bg-blue-100 transition-all"
-                              >
-                                <UserMinus className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => rejectUser(user.uid)}
-                                title="Eliminar permanentemente"
-                                className="w-10 flex items-center justify-center bg-slate-50 text-slate-400 py-2 rounded-xl hover:bg-red-50 hover:text-red-600 transition-all"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
+            <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse min-w-[800px]">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-black text-slate-500 uppercase tracking-wider">
+                      <th className="p-4 pl-6">Usuario</th>
+                      <th className="p-4">Rol</th>
+                      <th className="p-4">Aula y Proyecto</th>
+                      <th className="p-4">Última Conexión</th>
+                      <th className="p-4 pr-6 text-right">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                  {filteredUsers.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="py-20 text-center">
+                        <Users className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+                        <p className="text-slate-500 font-medium">No se encontraron usuarios.</p>
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredUsers.map((user) => {
+                      const userProject = allProjects.find(p => p.team.some(m => m.id === user.uid));
+                      return (
+                        <tr key={user.uid} className="hover:bg-slate-50 transition-colors">
+                          <td className="p-4 pl-6">
+                            <div className="flex items-center gap-3">
+                              <div className="relative shrink-0">
+                                <img src={user.photoURL || 'https://api.dicebear.com/7.x/avataaars/svg?seed=fallback'} alt="" className="w-10 h-10 rounded-full border border-slate-200 bg-white" />
+                                {user.status === 'approved' ? (
+                                  <div className="absolute -bottom-1 -right-1 bg-emerald-500 text-white rounded-full p-0.5 border-2 border-white">
+                                    <CheckCircle className="w-3 h-3" />
+                                  </div>
+                                ) : user.status === 'suspended' ? (
+                                  <div className="absolute -bottom-1 -right-1 bg-amber-500 text-white rounded-full p-0.5 border-2 border-white">
+                                    <PauseCircle className="w-3 h-3" />
+                                  </div>
+                                ) : (
+                                  <div className="absolute -bottom-1 -right-1 bg-amber-500 text-white rounded-full p-0.5 border-2 border-white">
+                                    <Clock className="w-3 h-3" />
+                                  </div>
+                                )}
+                              </div>
+                              <div className="min-w-0">
+                                <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2 flex-wrap">
+                                  <span className="truncate">{user.displayName}</span>
+                                  {duplicateEmails[user.email.toLowerCase().trim()] > 1 && (
+                                    <span className="text-[9px] bg-red-100 text-red-600 px-2 py-0.5 rounded-md uppercase tracking-wider shrink-0" title="Cuenta Duplicada">DUPLICADA</span>
+                                  )}
+                                  {user.status === 'pending' && (
+                                    <span className="text-[9px] bg-amber-100 text-amber-600 px-2 py-0.5 rounded-md uppercase tracking-wider shrink-0">PENDIENTE</span>
+                                  )}
+                                </h3>
+                                <p className="text-xs text-slate-500 truncate">{user.email}</p>
+                              </div>
                             </div>
-                          )}
-                        </div>
-                        {user.status === 'suspended' && (
-                          <div className="flex items-center gap-2 text-[10px] font-bold text-amber-600 bg-amber-50 px-3 py-1 rounded-lg">
-                            <PauseCircle className="w-3 h-3" />
-                            CUENTA SUSPENDIDA
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </>
-      )}
+                          </td>
+                          
+                          <td className="p-4 align-top">
+                            <div className="flex bg-slate-100 rounded-lg p-1 w-max">
+                              {(['student', 'assistant', 'admin'] as const).map((role) => {
+                                const isRootUser = isRootAdmin(user.email);
+                                return (
+                                  <button
+                                    key={role}
+                                    disabled={!canManageUsers || user.uid === realProfile?.uid || isRootUser}
+                                    onClick={() => handleRoleChange(user.uid, role)}
+                                    className={`px-3 py-1.5 rounded-md text-[10px] font-bold transition-all ${
+                                      user.role === role 
+                                        ? 'bg-white text-slate-900 shadow-sm' 
+                                        : 'text-slate-400 hover:bg-slate-200 hover:text-slate-700'
+                                    } disabled:opacity-50 disabled:cursor-not-allowed`}
+                                  >
+                                    {role === 'admin' ? 'ADMIN' : role === 'assistant' ? 'PROFESOR' : 'ALUMNO'}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </td>
+                          
+                          <td className="p-4 align-top">
+                            <div className="flex flex-col gap-2">
+                              <div className="flex items-center gap-2">
+                                <GraduationCap className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                <select
+                                  disabled={!canManageUsers || isRootAdmin(user.email)}
+                                  value={user.classroomId || ''}
+                                  onChange={(e) => handleAssignClassroom(user.uid, e.target.value || null)}
+                                  className="bg-transparent text-xs font-bold text-slate-700 outline-none hover:bg-slate-100 px-1 py-0.5 rounded cursor-pointer disabled:opacity-50 max-w-[150px] truncate"
+                                >
+                                  <option value="">-- Sin Aula --</option>
+                                  {classrooms.map((c) => (
+                                    <option key={c.id} value={c.id}>{c.name}</option>
+                                  ))}
+                                </select>
+                                {filterClassroomId && user.classroomId === filterClassroomId && (
+                                  <button onClick={() => handleAssignClassroom(user.uid, null)} className="text-red-400 hover:text-red-600 ml-auto shrink-0" title="Desvincular del aula">
+                                    <X size={12} />
+                                  </button>
+                                )}
+                              </div>
+                              {userProject && (
+                                <div className="flex items-center gap-2">
+                                  <LayoutDashboard className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                  <span className="text-xs font-bold text-slate-700 truncate max-w-[120px]">{userProject.name}</span>
+                                  <button
+                                    onClick={() => setActiveTab('projects')}
+                                    className="text-[9px] bg-slate-100 text-slate-600 hover:bg-slate-200 px-1.5 py-0.5 rounded font-bold uppercase ml-auto shrink-0"
+                                  >
+                                    Ver
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                          
+                          <td className="p-4 align-top">
+                            <span className="text-xs font-medium text-slate-500 flex items-center gap-1.5">
+                              <Calendar className="w-3.5 h-3.5" />
+                              {user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : 'Desconocido'}
+                            </span>
+                          </td>
+                          
+                          <td className="p-4 pr-6 align-top">
+                            <div className="flex justify-end gap-1.5">
+                              {user.status === 'pending' ? (
+                                <>
+                                  <button
+                                    onClick={() => approveUser(user.uid)}
+                                    disabled={!canManageUsers}
+                                    title="Activar Cuenta"
+                                    className="bg-emerald-100 text-emerald-700 p-2 rounded-xl hover:bg-emerald-600 hover:text-white transition-all disabled:opacity-50"
+                                  >
+                                    <CheckCircle size={16} />
+                                  </button>
+                                  <button
+                                    onClick={() => rejectUser(user.uid)}
+                                    disabled={!canManageUsers}
+                                    title="Rechazar"
+                                    className="bg-red-50 text-red-600 p-2 rounded-xl hover:bg-red-600 hover:text-white transition-all disabled:opacity-50"
+                                  >
+                                    <XCircle size={16} />
+                                  </button>
+                                </>
+                              ) : (
+                                <>
+                                  {!isRootAdmin(user.email) && (
+                                    <button
+                                      onClick={() => impersonateUser(user.uid)}
+                                      title="Suplantar"
+                                      className="bg-blue-50 text-blue-600 p-2 rounded-xl hover:bg-blue-600 hover:text-white transition-all"
+                                    >
+                                      <Ghost size={16} />
+                                    </button>
+                                  )}
+                                  {canManageUsers && user.uid !== realProfile?.uid && !isRootAdmin(user.email) && (
+                                    <>
+                                      <button
+                                        onClick={() => suspendUser(user.uid, user.status)}
+                                        title={user.status === 'suspended' ? "Activar cuenta" : "Suspender cuenta"}
+                                        className={`p-2 rounded-xl transition-all ${
+                                          user.status === 'suspended' 
+                                            ? 'bg-amber-100 text-amber-700 hover:bg-emerald-100 hover:text-emerald-700' 
+                                            : 'bg-slate-100 text-slate-500 hover:bg-amber-100 hover:text-amber-700'
+                                        }`}
+                                      >
+                                        {user.status === 'suspended' ? <PlayCircle size={16} /> : <PauseCircle size={16} />}
+                                      </button>
+                                      <button
+                                        onClick={() => resetUser(user)}
+                                        title="Liberar de su proyecto"
+                                        className="bg-slate-100 text-slate-500 p-2 rounded-xl hover:bg-blue-100 hover:text-blue-700 transition-all"
+                                      >
+                                        <UserMinus size={16} />
+                                      </button>
+                                      <button
+                                        onClick={() => rejectUser(user.uid)}
+                                        title="Eliminar permanentemente"
+                                        className="bg-slate-100 text-slate-500 p-2 rounded-xl hover:bg-red-100 hover:text-red-700 transition-all"
+                                      >
+                                        <Trash2 size={16} />
+                                      </button>
+                                    </>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
+        )}
 
         {activeTab === 'projects' && (
           <>

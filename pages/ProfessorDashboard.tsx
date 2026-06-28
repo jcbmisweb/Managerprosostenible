@@ -266,7 +266,7 @@ export const ProfessorDashboard: React.FC = () => {
     const isInMyClassroom = u.classroomId && myClassroomIds.includes(u.classroomId);
     const isPendingStudent = u.status === 'pending' && u.role === 'student';
     return isInMyClassroom || isPendingStudent || u.uid === myUid;
-  });
+  }).sort((a, b) => a.displayName.localeCompare(b.displayName));
 
   const filteredProjects = allProjects.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -555,101 +555,132 @@ export const ProfessorDashboard: React.FC = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredUsers.length === 0 ? (
-              <div className="col-span-full py-20 text-center bg-white rounded-3xl border border-slate-100 shadow-sm">
-                <Users className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-                <p className="text-slate-500 font-medium text-sm">No se encontraron alumnos.</p>
-              </div>
-            ) : (
-              filteredUsers.map((user) => (
-                <div key={user.uid} className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 hover:shadow-md transition-all flex flex-col">
-                  <div className="flex items-center gap-4 mb-4">
-                    <img src={user.photoURL || 'https://lh3.googleusercontent.com/d/1DkCOqFGdw3PZbyNUnTQNgeaAGjBfv1_e'} alt="" className="w-12 h-12 rounded-full border border-slate-200" referrerPolicy="no-referrer" />
-                    <div className="overflow-hidden flex-1">
-                      <h3 className="font-bold text-slate-900 truncate">{user.displayName}</h3>
-                      <p className="text-xs text-slate-500 truncate font-mono">{user.email}</p>
-                    </div>
-                    {user.status === 'approved' ? (
-                      <span className="bg-emerald-50 text-emerald-700 border border-emerald-100 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider shrink-0">
-                        Activo
-                      </span>
-                    ) : user.status === 'suspended' ? (
-                      <span className="bg-red-50 text-red-700 border border-red-100 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider shrink-0">
-                        Suspendido
-                      </span>
-                    ) : (
-                      <span className="bg-amber-50 text-amber-700 border border-amber-100 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider shrink-0 animate-pulse">
-                        Pendiente
-                      </span>
-                    )}
-                  </div>
+          <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse min-w-[800px]">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-black text-slate-500 uppercase tracking-wider">
+                    <th className="p-4 pl-6">Usuario</th>
+                    <th className="p-4">Aula y Proyecto</th>
+                    <th className="p-4">Última Conexión</th>
+                    <th className="p-4 pr-6 text-right">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                {filteredUsers.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="py-20 text-center">
+                      <Users className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+                      <p className="text-slate-500 font-medium text-sm">No se encontraron alumnos.</p>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredUsers.map((user) => {
+                    const userProject = allProjects.find(p => p.id === user.projectId);
+                    return (
+                      <tr key={user.uid} className="hover:bg-slate-50 transition-colors">
+                        <td className="p-4 pl-6">
+                          <div className="flex items-center gap-3">
+                            <div className="relative shrink-0">
+                              <img src={user.photoURL || 'https://api.dicebear.com/7.x/avataaars/svg?seed=fallback'} alt="" className="w-10 h-10 rounded-full border border-slate-200 bg-white" referrerPolicy="no-referrer" />
+                              {user.status === 'approved' ? (
+                                <div className="absolute -bottom-1 -right-1 bg-emerald-500 text-white rounded-full p-0.5 border-2 border-white">
+                                  <CheckCircle className="w-3 h-3" />
+                                </div>
+                              ) : user.status === 'suspended' ? (
+                                <div className="absolute -bottom-1 -right-1 bg-red-500 text-white rounded-full p-0.5 border-2 border-white">
+                                  <PauseCircle className="w-3 h-3" />
+                                </div>
+                              ) : (
+                                <div className="absolute -bottom-1 -right-1 bg-amber-500 text-white rounded-full p-0.5 border-2 border-white animate-pulse">
+                                  <Clock className="w-3 h-3" />
+                                </div>
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2 flex-wrap">
+                                <span className="truncate">{user.displayName}</span>
+                                {user.status === 'pending' && (
+                                  <span className="text-[9px] bg-amber-100 text-amber-600 px-2 py-0.5 rounded-md uppercase tracking-wider shrink-0">PENDIENTE</span>
+                                )}
+                              </h3>
+                              <p className="text-xs text-slate-500 truncate font-mono">{user.email}</p>
+                            </div>
+                          </div>
+                        </td>
 
-                  <div className="space-y-4 mb-4 pt-4 border-t border-slate-100">
-                    <div>
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Aula Asignada</label>
-                      <select
-                        value={user.classroomId || ''}
-                        onChange={(e) => handleAssignClassroom(user.uid, e.target.value || null)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
-                      >
-                        <option value="">-- Sin Aula --</option>
-                        {classrooms.map((c) => (
-                          <option key={c.id} value={c.id}>{c.name}</option>
-                        ))}
-                      </select>
-                    </div>
+                        <td className="p-4 align-top">
+                          <div className="flex flex-col gap-2">
+                            <div className="flex items-center gap-2">
+                              <GraduationCap className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                              <select
+                                value={user.classroomId || ''}
+                                onChange={(e) => handleAssignClassroom(user.uid, e.target.value || null)}
+                                className="bg-transparent text-xs font-bold text-slate-700 outline-none hover:bg-slate-100 px-1 py-0.5 rounded cursor-pointer max-w-[150px] truncate"
+                              >
+                                <option value="">-- Sin Aula --</option>
+                                {classrooms.map((c) => (
+                                  <option key={c.id} value={c.id}>{c.name}</option>
+                                ))}
+                              </select>
+                            </div>
+                            {userProject && (
+                              <div className="flex items-center gap-2">
+                                <LayoutDashboard className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                <span className="text-xs font-bold text-slate-700 truncate max-w-[120px]">{userProject.name}</span>
+                                <button
+                                  onClick={() => resetUser(user)}
+                                  className="text-[9px] bg-slate-100 text-slate-600 hover:bg-slate-200 px-1.5 py-0.5 rounded font-bold uppercase ml-auto shrink-0"
+                                  title="Desvincular del proyecto"
+                                >
+                                  Desvincular
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </td>
 
-                    {user.projectId && (
-                      <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between">
-                        <div>
-                          <span className="text-[9px] font-bold text-slate-400 uppercase block">Proyecto Vinculado</span>
-                          <span className="text-xs font-bold text-slate-800">
-                            {allProjects.find(p => p.id === user.projectId)?.name || 'Proyecto activo'}
+                        <td className="p-4 align-top">
+                          <span className="text-xs font-medium text-slate-500 flex items-center gap-1.5">
+                            <Clock className="w-3.5 h-3.5" />
+                            {(user as any).lastLogin ? new Date((user as any).lastLogin).toLocaleDateString() : 'Desconocido'}
                           </span>
-                        </div>
-                        <button
-                          onClick={() => resetUser(user)}
-                          title="Desvincular del proyecto"
-                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                        >
-                          <UserMinus size={14} />
-                        </button>
-                      </div>
-                    )}
-                  </div>
+                        </td>
 
-                  <div className="mt-auto pt-4 border-t border-slate-50 flex gap-2">
-                    {user.status === 'pending' ? (
-                      <button
-                        onClick={() => approveUser(user.uid)}
-                        className="w-full flex items-center justify-center gap-2 bg-emerald-600 text-white py-2.5 rounded-xl text-xs font-bold hover:bg-emerald-700 transition-all shadow-md shadow-emerald-900/10"
-                      >
-                        <CheckCircle className="w-4 h-4" />
-                        Aprobar Estudiante
-                      </button>
-                    ) : (
-                      user.uid !== myUid && (
-                        <button
-                          onClick={() => suspendUser(user.uid, user.status)}
-                          className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold transition-all ${
-                            user.status === 'suspended'
-                              ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'
-                              : 'bg-red-50 text-red-600 hover:bg-red-100'
-                          }`}
-                        >
-                          {user.status === 'suspended' ? (
-                            <><PlayCircle className="w-4 h-4" /> Reactivar</>
-                          ) : (
-                            <><PauseCircle className="w-4 h-4" /> Suspender Acceso</>
-                          )}
-                        </button>
-                      )
-                    )}
-                  </div>
-                </div>
-              ))
-            )}
+                        <td className="p-4 pr-6 align-top">
+                          <div className="flex justify-end gap-1.5">
+                            {user.status === 'pending' ? (
+                              <button
+                                onClick={() => approveUser(user.uid)}
+                                title="Aprobar Estudiante"
+                                className="bg-emerald-100 text-emerald-700 p-2 rounded-xl hover:bg-emerald-600 hover:text-white transition-all shadow-sm"
+                              >
+                                <CheckCircle size={16} />
+                              </button>
+                            ) : (
+                              user.uid !== myUid && (
+                                <button
+                                  onClick={() => suspendUser(user.uid, user.status)}
+                                  title={user.status === 'suspended' ? 'Reactivar' : 'Suspender Acceso'}
+                                  className={`p-2 rounded-xl transition-all shadow-sm ${
+                                    user.status === 'suspended'
+                                      ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'
+                                      : 'bg-red-50 text-red-600 hover:bg-red-100'
+                                  }`}
+                                >
+                                  {user.status === 'suspended' ? <PlayCircle size={16} /> : <PauseCircle size={16} />}
+                                </button>
+                              )
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}

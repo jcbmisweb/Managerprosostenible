@@ -131,6 +131,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 role: isAdminEmail ? 'admin' : 'student',
                 status: isAdminEmail ? 'approved' : 'pending',
                 classroomId: null,
+                lastLogin: new Date().toISOString(),
               };
               try {
                 await setDoc(userRef, newProfile);
@@ -202,11 +203,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const login = async () => {
-    await signInWithPopup(auth, googleProvider);
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      if (result.user) {
+        await updateDoc(doc(db, 'users', result.user.uid), {
+          lastLogin: new Date().toISOString()
+        });
+      }
+    } catch (error) {
+      console.error("Login Error:", error);
+    }
   };
 
   const loginWithRedirect = async () => {
-    await signInWithRedirect(auth, googleProvider);
+    try {
+      await signInWithRedirect(auth, googleProvider);
+      // loginWithRedirect does not return a result here, we handle it elsewhere or rely on auth state
+    } catch (error) {
+      console.error("Login Redirect Error:", error);
+    }
   };
 
   const logout = async () => {
