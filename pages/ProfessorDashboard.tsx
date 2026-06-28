@@ -62,6 +62,8 @@ interface ProjectSummary {
   coEvaluations?: PeerReview[];
   coEvaluationPoints?: number;
   classroomId?: string | null;
+  isTeamClosed?: boolean;
+  isTeamClosedProposed?: boolean;
 }
 
 export const ProfessorDashboard: React.FC = () => {
@@ -177,6 +179,11 @@ export const ProfessorDashboard: React.FC = () => {
       if (classroomId && targetUser?.status === 'pending') {
         updates.status = 'approved';
       }
+
+      // Clear project association if removed from classroom
+      if (!classroomId) {
+        updates.projectId = null;
+      }
       
       await updateDoc(doc(db, 'users', uid), updates);
       logAction('USER_CLASS_ASSIGNED', { uid, email: targetUser?.email, classroomId });
@@ -248,12 +255,91 @@ export const ProfessorDashboard: React.FC = () => {
     }
   };
 
+  const DEFAULT_PROJECT_NAMES = [
+    "Los Panes", "El Sabor del Trigo", "Delicia Verde", "Fuego Lento", "La Oliva Dorada",
+    "Viento y Sal", "Sabor y Arte", "Trigo de Oro", "La Brasa Caliente", "Mesa del Chef",
+    "Esencia Marina", "La Cosecha", "Punto Dulce", "Gastro Lab", "Estrella de Plata"
+  ];
+
+  const handleCreateProject = async (classroomId: string) => {
+    try {
+      const randomName = DEFAULT_PROJECT_NAMES[Math.floor(Math.random() * DEFAULT_PROJECT_NAMES.length)];
+      const name = window.prompt("Introduce el nombre del proyecto (se sugiere este nombre aleatorio):", randomName);
+      if (!name) return; // Cancelled
+      
+      const projectId = doc(collection(db, 'projects')).id;
+      const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+      
+      const classroom = classrooms.find(c => c.id === classroomId);
+      
+      const newProject = {
+        id: projectId,
+        name: name,
+        code: code,
+        createdBy: myUid,
+        createdAt: new Date().toISOString(),
+        team: [], // starts empty
+        classroomId: classroomId,
+        isTeamClosed: false,
+        isTeamClosedProposed: false,
+        schoolName: classroom?.name || "",
+        teamName: ""
+      };
+      
+      await setDoc(doc(db, 'projects', projectId), newProject);
+      logAction('PROJECT_CREATED_BY_PROFESSOR', { projectId, name, classroomId });
+    } catch (error) {
+      console.error("Error creating project:", error);
+      alert("Error al crear el proyecto");
+    }
+  };
+
+  const handleApproveTeamClosure = async (projectId: string) => {
+    try {
+      await updateDoc(doc(db, 'projects', projectId), {
+        isTeamClosed: true,
+        isTeamClosedProposed: false
+      });
+      logAction('PROJECT_TEAM_CLOSURE_APPROVED_BY_PROFESSOR', { projectId });
+    } catch (error) {
+      console.error("Error approving team closure:", error);
+      alert("Error al aprobar la propuesta");
+    }
+  };
+
+  const handleRejectTeamClosure = async (projectId: string) => {
+    try {
+      await updateDoc(doc(db, 'projects', projectId), {
+        isTeamClosed: false,
+        isTeamClosedProposed: false
+      });
+      logAction('PROJECT_TEAM_CLOSURE_REJECTED_BY_PROFESSOR', { projectId });
+    } catch (error) {
+      console.error("Error rejecting team closure:", error);
+      alert("Error al rechazar la propuesta");
+    }
+  };
+
+  const handleReopenTeam = async (projectId: string) => {
+    if (!window.confirm("¿Estás seguro de que quieres volver a abrir este equipo? Esto permitirá a los alumnos entrar o salir del grupo de proyecto.")) return;
+    try {
+      await updateDoc(doc(db, 'projects', projectId), {
+        isTeamClosed: false,
+        isTeamClosedProposed: false
+      });
+      logAction('PROJECT_TEAM_REOPENED_BY_PROFESSOR', { projectId });
+    } catch (error) {
+      console.error("Error reopening team:", error);
+      alert("Error al reabrir el equipo");
+    }
+  };
+
   // Filters
   const myClassroomIds = classrooms.map(c => c.id);
 
   const filteredUsers = allUsers.filter(u => {
-    const matchesSearch = u.displayName.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          u.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = (u.displayName || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          (u.email || '').toLowerCase().includes(searchTerm.toLowerCase());
     if (!matchesSearch) return false;
     
     // Global filter from classroom selection
@@ -261,12 +347,14 @@ export const ProfessorDashboard: React.FC = () => {
     
     // Filter to show:
     // 1. Students in this professor's classrooms.
-    // 2. Pending student registrations (so professor can approve and assign them).
-    // 3. The professor's own account.
+    // 2. Students who don't have any classroom assigned (so the professor can assign them).
+    // 3. Pending student registrations.
+    // 4. The professor's own account.
     const isInMyClassroom = u.classroomId && myClassroomIds.includes(u.classroomId);
+    const isUnassignedStudent = !u.classroomId && u.role === 'student';
     const isPendingStudent = u.status === 'pending' && u.role === 'student';
-    return isInMyClassroom || isPendingStudent || u.uid === myUid;
-  }).sort((a, b) => a.displayName.localeCompare(b.displayName));
+    return isInMyClassroom || isUnassignedStudent || isPendingStudent || u.uid === myUid;
+  }).sort((a, b) => (a.displayName || '').localeCompare(b.displayName || ''));
 
   const filteredProjects = allProjects.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -520,11 +608,20 @@ export const ProfessorDashboard: React.FC = () => {
                       >
                         {filterClassroomId === classroom.id ? 'Filtrando...' : 'Filtrar Panel'}
                       </button>
+
+                      <button
+                        onClick={() => handleCreateProject(classroom.id)}
+                        className="py-2.5 px-3 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 hover:text-emerald-800 rounded-xl transition-all flex items-center gap-1 text-xs font-bold uppercase tracking-wider"
+                        title="Habilitar nuevo proyecto"
+                      >
+                        <Plus size={14} />
+                        <span>Proyecto</span>
+                      </button>
                       
                       {isSuperAdmin && (
                         <button
                           onClick={() => handleDeleteClassroom(classroom.id)}
-                          className="p-2.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                          className="p-2.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all shrink-0"
                           title="Eliminar aula"
                         >
                           <Trash2 size={16} />
@@ -542,15 +639,15 @@ export const ProfessorDashboard: React.FC = () => {
       {/* Alumnos Tab */}
       {activeTab === 'users' && (
         <div className="space-y-6">
-          <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 flex items-start gap-3">
+          <div id="prof-assign-helper-box" className="bg-blue-50 border border-blue-100 rounded-2xl p-4 flex items-start gap-3">
             <div className="bg-blue-100 p-2 rounded-xl text-blue-600">
               <Info className="w-5 h-5" />
             </div>
             <div>
               <h4 className="text-sm font-bold text-blue-900">¿Cómo dar de alta a tus alumnos?</h4>
               <p className="text-xs text-blue-700 leading-relaxed mt-1">
-                Los alumnos deben ingresar el código del aula que creaste al momento de registrarse. Aparecerán aquí como <strong>"Pendientes"</strong> si necesitan aprobación de acceso. 
-                Usa el selector para cambiar su aula o suspender su acceso en caso necesario.
+                Hemos simplificado el sistema: ya no necesitas dar códigos de aula. En la tabla inferior verás a todos tus alumnos registrados y a aquellos <strong>"Sin Aula"</strong>. 
+                Usa el menú desplegable en la columna <strong>"Aula y Proyecto"</strong> de cada alumno para asignarle tu aula directamente o desvincularlo si es necesario.
               </p>
             </div>
           </div>
@@ -711,6 +808,57 @@ export const ProfessorDashboard: React.FC = () => {
                     <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1 block">Código de Unión</span>
                   </div>
                 </div>
+
+                {/* VALIDATION BANNER FOR PROFESSOR */}
+                {project.isTeamClosed ? (
+                  <div className="mx-8 mt-6 p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="w-5 h-5 text-emerald-600 shrink-0" />
+                      <div>
+                        <p className="text-xs font-bold text-emerald-900">Equipo Cerrado y Validado</p>
+                        <p className="text-[10px] text-emerald-600">Este grupo ya está trabajando en su proyecto.</p>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => handleReopenTeam(project.id)}
+                      className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all border border-slate-200"
+                    >
+                      Reabrir Equipo
+                    </button>
+                  </div>
+                ) : (project as any).isTeamClosedProposed ? (
+                  <div className="mx-8 mt-6 p-4 bg-amber-50 border border-amber-200 rounded-2xl flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 animate-pulse">
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-5 h-5 text-amber-600 shrink-0" />
+                      <div>
+                        <p className="text-xs font-bold text-amber-900 font-black">Propuesta de Cierre Recibida</p>
+                        <p className="text-[10px] text-amber-600 font-medium">El equipo propone cerrar el grupo con {project.team?.length || 0} integrantes.</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2 shrink-0">
+                      <button 
+                        onClick={() => handleApproveTeamClosure(project.id)}
+                        className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase tracking-wider rounded-xl transition-all shadow-sm"
+                      >
+                        Visto Bueno
+                      </button>
+                      <button 
+                        onClick={() => handleRejectTeamClosure(project.id)}
+                        className="px-3 py-1.5 bg-red-100 hover:bg-red-200 text-red-700 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all"
+                      >
+                        Rechazar
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mx-8 mt-6 p-4 bg-slate-50 border border-slate-200 rounded-2xl flex items-center gap-2">
+                    <Users className="w-5 h-5 text-slate-400 shrink-0" />
+                    <div>
+                      <p className="text-xs font-bold text-slate-800">Equipo Abierto</p>
+                      <p className="text-[10px] text-slate-500 font-medium">Los alumnos se están incorporando. Esperando propuesta de cierre.</p>
+                    </div>
+                  </div>
+                )}
 
                 <div className="p-8 flex-1">
                   <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">

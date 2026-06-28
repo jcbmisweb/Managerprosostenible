@@ -1,89 +1,45 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Clock, LogOut, ArrowRight, Loader2, BookOpen, Users } from 'lucide-react';
-import { db, collection, query, where, getDocs, updateDoc, doc, getDoc, OperationType, handleFirestoreError } from '../firebase';
+import { Clock, LogOut, Loader2, BookOpen, Users, Edit2, Check, X, ShieldCheck, Award } from 'lucide-react';
 
 export const WaitingRoom: React.FC = () => {
-  const { logout, profile } = useAuth();
-  const [classCode, setClassCode] = useState('');
-  const [projectCode, setProjectCode] = useState('');
+  const { logout, profile, updateProfile } = useAuth();
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [tempName, setTempName] = useState(profile?.displayName || '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleJoinClassroom = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!classCode.trim() || !profile) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const q = query(collection(db, 'classrooms'), where('code', '==', classCode.trim().toUpperCase()));
-      const snap = await getDocs(q);
-      if (snap.empty) {
-        throw new Error("Código de aula no encontrado.");
-      }
-      
-      const classroomDoc = snap.docs[0];
-      const classroom = classroomDoc.data();
-      
-      // Comprobación de existencia real de la clase por ID antes de vincular
-      const realClassSnap = await getDoc(doc(db, 'classrooms', classroom.id));
-      if (!realClassSnap.exists()) {
-        throw new Error("El aula no tiene existencia real en el sistema.");
-      }
-      
-      await updateDoc(doc(db, 'users', profile.uid), {
-        classroomId: classroom.id,
-        status: 'approved'
-      });
-    } catch (err: any) {
-      setError(err.message || "Error al unirse al aula");
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    if (profile?.displayName) {
+      setTempName(profile.displayName);
     }
-  };
+  }, [profile]);
 
-  const handleJoinProject = async (e: React.FormEvent) => {
+  const handleUpdateName = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!projectCode.trim() || !profile) return;
+    if (!tempName.trim() || !profile) return;
     setLoading(true);
     setError(null);
     try {
-      const q = query(collection(db, 'projects'), where('code', '==', projectCode.trim().toUpperCase()));
-      const snap = await getDocs(q);
-      if (snap.empty) {
-        throw new Error("Código de proyecto no encontrado.");
-      }
-      const project = snap.docs[0].data();
-      
-      // Comprobación de existencia real de la clase asociada al proyecto antes de vincular
-      if (project.classroomId) {
-        const realClassSnap = await getDoc(doc(db, 'classrooms', project.classroomId));
-        if (!realClassSnap.exists()) {
-          throw new Error("El aula vinculada a este proyecto no existe en el sistema.");
-        }
-      }
-      
-      await updateDoc(doc(db, 'users', profile.uid), {
-        projectId: project.id,
-        classroomId: project.classroomId || null,
-        status: 'approved'
-      });
+      await updateProfile({ displayName: tempName.trim() });
+      setIsEditingName(false);
     } catch (err: any) {
-      setError(err.message || "Error al unirse al proyecto");
+      setError("Error al actualizar el nombre");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-900">
+    <div id="waiting-room-root" className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-900">
       {/* Header */}
-      <header className="bg-white border-b border-slate-200 px-8 py-4 flex items-center justify-between shadow-sm">
+      <header id="waiting-room-header" className="bg-white border-b border-slate-200 px-8 py-4 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-3">
           <BookOpen className="text-emerald-600" size={28} />
           <h1 className="text-xl font-black text-slate-900 tracking-tight">Manager pro Sostenible</h1>
         </div>
         <button
+          id="btn-waiting-room-logout"
           onClick={logout}
           className="flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors bg-slate-100 hover:bg-slate-200 px-4 py-2 rounded-xl"
         >
@@ -93,10 +49,10 @@ export const WaitingRoom: React.FC = () => {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 max-w-4xl w-full mx-auto p-8 flex flex-col md:flex-row gap-8 items-start mt-8">
+      <main id="waiting-room-main" className="flex-1 max-w-4xl w-full mx-auto p-8 flex flex-col md:flex-row gap-8 items-start mt-8">
         
-        {/* Left Column: Student Profile */}
-        <div className="w-full md:w-1/3 bg-white rounded-3xl p-8 border border-slate-100 shadow-sm text-center">
+        {/* Left Column: Student Profile Editor */}
+        <div id="student-profile-card" className="w-full md:w-1/3 bg-white rounded-3xl p-8 border border-slate-100 shadow-sm text-center">
           <div className="relative inline-block mb-4">
             <img 
               src={profile?.photoURL || 'https://api.dicebear.com/7.x/avataaars/svg?seed=fallback'} 
@@ -107,88 +63,129 @@ export const WaitingRoom: React.FC = () => {
               ALUMNO
             </div>
           </div>
-          <h2 className="text-xl font-black text-slate-900 mb-1">{profile?.displayName}</h2>
-          <p className="text-slate-500 text-sm mb-6 font-medium">{profile?.email}</p>
+
+          {isEditingName ? (
+            <form onSubmit={handleUpdateName} className="space-y-3 mt-2">
+              <input
+                id="input-edit-profile-name"
+                type="text"
+                required
+                value={tempName}
+                onChange={(e) => setTempName(e.target.value)}
+                placeholder="Tu nombre completo"
+                className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-center font-semibold"
+                maxLength={40}
+              />
+              <div className="flex justify-center gap-2">
+                <button
+                  id="btn-save-profile-name"
+                  type="submit"
+                  disabled={loading || !tempName.trim()}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white p-2 rounded-lg transition-all disabled:opacity-50"
+                  title="Guardar"
+                >
+                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check size={16} />}
+                </button>
+                <button
+                  id="btn-cancel-profile-name"
+                  type="button"
+                  onClick={() => {
+                    setTempName(profile?.displayName || '');
+                    setIsEditingName(false);
+                  }}
+                  className="bg-slate-100 hover:bg-slate-200 text-slate-600 p-2 rounded-lg transition-all"
+                  title="Cancelar"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            </form>
+          ) : (
+            <div className="mt-2 group">
+              <div className="flex items-center justify-center gap-2">
+                <h2 id="student-name-display" className="text-xl font-black text-slate-900 tracking-tight">{profile?.displayName || 'Sin Nombre'}</h2>
+                <button 
+                  id="btn-trigger-edit-name"
+                  onClick={() => setIsEditingName(true)} 
+                  className="text-slate-400 hover:text-emerald-600 transition-colors"
+                  title="Editar nombre"
+                >
+                  <Edit2 size={14} />
+                </button>
+              </div>
+            </div>
+          )}
+
+          <p className="text-slate-500 text-sm mb-6 font-medium mt-1">{profile?.email}</p>
           
-          <div className="bg-amber-50 text-amber-800 text-xs font-bold p-4 rounded-2xl flex flex-col items-center gap-2 border border-amber-100">
-            <Clock className="w-6 h-6 text-amber-500 mb-1" />
-            <span>Esperando asignación</span>
-            <span className="text-amber-600 font-medium text-center">Tu cuenta está pendiente de unirse a un aula o proyecto.</span>
+          <div id="waiting-status-box" className="bg-amber-50 text-amber-800 text-xs font-bold p-4 rounded-2xl flex flex-col items-center gap-2 border border-amber-100">
+            <Clock className="w-6 h-6 text-amber-500 mb-1 animate-pulse" />
+            <span>Esperando asignación de aula</span>
+            <span className="text-amber-600 font-medium text-center leading-relaxed">
+              Tu profesor te agregará directamente a tu clase. Por favor, asegúrate de que tu nombre sea correcto.
+            </span>
           </div>
+
+          {error && (
+            <p className="text-xs text-red-600 mt-3 font-semibold bg-red-50 p-2 rounded-lg border border-red-100">
+              {error}
+            </p>
+          )}
         </div>
 
-        {/* Right Column: Actions (Join Classroom/Project) */}
-        <div className="w-full md:w-2/3 flex flex-col gap-6">
+        {/* Right Column: Dynamic Informational / Instructions Cards */}
+        <div id="instructions-column" className="w-full md:w-2/3 flex flex-col gap-6">
           <div className="bg-white rounded-3xl p-8 border border-slate-100 shadow-sm">
-            <h2 className="text-2xl font-black text-slate-900 mb-2 tracking-tight">Acceso a tu espacio</h2>
+            <h2 id="instructions-title" className="text-2xl font-black text-slate-900 mb-2 tracking-tight">¡Bienvenido al Manager Sostenible!</h2>
             <p className="text-slate-500 text-sm mb-8">
-              Si tu profesor te ha proporcionado un código, introdúcelo a continuación para acceder a tu aula o proyecto. 
-              Si te han indicado que tu cuenta cambiará a perfil de profesor, espera a que un administrador aplique el cambio.
+              Hemos simplificado el proceso de acceso para aligerar la plataforma y evitar errores de registro en el limbo. 
+              Ahora no necesitas buscar ningún código. Sigue estos pasos:
             </p>
 
-            {error && (
-              <p className="text-sm font-bold text-red-600 bg-red-50 border border-red-100 p-4 rounded-2xl mb-6 flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-red-500 block"></span>
-                {error}
-              </p>
-            )}
-
             <div className="space-y-6">
-              {/* Opción A: Unirse a un aula */}
-              <form onSubmit={handleJoinClassroom} className="p-6 bg-slate-50 rounded-2xl border border-slate-200">
-                <h3 className="font-bold text-slate-800 flex items-center gap-2 mb-2 text-sm uppercase tracking-wider">
-                  <BookOpen size={16} className="text-emerald-500" />
-                  Opción A: Unirse a un Aula
-                </h3>
-                <p className="text-xs text-slate-500 mb-4 font-medium">Introduce el código del aula proporcionado por tu profesor para empezar a crear proyectos.</p>
-                <div className="flex gap-3">
-                  <input
-                    type="text"
-                    required
-                    maxLength={6}
-                    value={classCode}
-                    onChange={(e) => setClassCode(e.target.value.toUpperCase())}
-                    placeholder="AULA12"
-                    className="flex-1 px-4 py-3 rounded-xl border border-slate-300 outline-none focus:ring-2 focus:ring-emerald-500 text-sm font-mono tracking-widest text-center shadow-inner bg-white"
-                  />
-                  <button
-                    type="submit"
-                    disabled={loading || classCode.length < 3}
-                    className="bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold text-xs hover:bg-emerald-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 shadow-sm"
-                  >
-                    {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight size={16} />}
-                    Unirse
-                  </button>
+              {/* Step 1 */}
+              <div id="step-1-card" className="flex gap-4 p-5 bg-slate-50 rounded-2xl border border-slate-100 hover:border-slate-200 transition-all">
+                <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 font-bold text-sm shadow-sm">
+                  1
                 </div>
-              </form>
+                <div>
+                  <h3 className="font-bold text-slate-800 text-base mb-1">Nombre y Perfil Listo</h3>
+                  <p className="text-xs text-slate-500 leading-relaxed font-medium">
+                    Asegúrate de cambiar tu nombre en la tarjeta de la izquierda si es necesario. Tu profesor te identificará en su base de datos de perfiles utilizando tu nombre completo y correo electrónico.
+                  </p>
+                </div>
+              </div>
 
-              {/* Opción B: Unirse a un proyecto */}
-              <form onSubmit={handleJoinProject} className="p-6 bg-slate-50 rounded-2xl border border-slate-200">
-                <h3 className="font-bold text-slate-800 flex items-center gap-2 mb-2 text-sm uppercase tracking-wider">
-                  <Users size={16} className="text-blue-500" />
-                  Opción B: Unirse a un Proyecto
-                </h3>
-                <p className="text-xs text-slate-500 mb-4 font-medium">Si ya tienes un equipo asignado, entra directamente con el código del proyecto.</p>
-                <div className="flex gap-3">
-                  <input
-                    type="text"
-                    required
-                    maxLength={6}
-                    value={projectCode}
-                    onChange={(e) => setProjectCode(e.target.value.toUpperCase())}
-                    placeholder="ABC123"
-                    className="flex-1 px-4 py-3 rounded-xl border border-slate-300 outline-none focus:ring-2 focus:ring-blue-500 text-sm font-mono tracking-widest text-center shadow-inner bg-white"
-                  />
-                  <button
-                    type="submit"
-                    disabled={loading || projectCode.length < 6}
-                    className="bg-blue-600 text-white px-6 py-3 rounded-xl font-bold text-xs hover:bg-blue-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 shadow-sm"
-                  >
-                    {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight size={16} />}
-                    Unirse
-                  </button>
+              {/* Step 2 */}
+              <div id="step-2-card" className="flex gap-4 p-5 bg-slate-50 rounded-2xl border border-slate-100 hover:border-slate-200 transition-all">
+                <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center shrink-0 font-bold text-sm shadow-sm">
+                  2
                 </div>
-              </form>
+                <div>
+                  <h3 className="font-bold text-slate-800 text-base mb-1">Asignación Automática de Aula</h3>
+                  <p className="text-xs text-slate-500 leading-relaxed font-medium">
+                    Tu profesor te buscará y te asignará directamente a tu Aula. Cuando lo haga, al recargar la web o de forma automática, accederás a tu panel con todos los contenidos habilitados.
+                  </p>
+                </div>
+              </div>
+
+              {/* Step 3 */}
+              <div id="step-3-card" className="flex gap-4 p-5 bg-slate-50 rounded-2xl border border-slate-100 hover:border-slate-200 transition-all">
+                <div className="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center shrink-0 font-bold text-sm shadow-sm">
+                  3
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-800 text-base mb-1">Unirte a tu Proyecto de Equipo</h3>
+                  <p className="text-xs text-slate-500 leading-relaxed font-medium">
+                    Una vez asignado a tu Aula, tu profesor creará una lista de proyectos aprobados con nombres aleatorios por defecto. Podrás unirte al proyecto que te corresponda junto a tus compañeros hasta completar el grupo (máximo 5 personas).
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-8 pt-6 border-t border-slate-100 flex items-center gap-3 text-slate-400">
+              <ShieldCheck className="text-emerald-500" size={18} />
+              <p className="text-xs font-semibold text-slate-500">Garantizamos que todas las cuentas están registradas de forma segura y centralizada en el Registro de Control de Accesos.</p>
             </div>
           </div>
         </div>

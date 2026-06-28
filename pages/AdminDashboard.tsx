@@ -342,6 +342,11 @@ export const AdminDashboard: React.FC = () => {
       if (classroomId && targetUser?.status === 'pending') {
         updates.status = 'approved';
       }
+
+      // Clear project association if removed from classroom
+      if (!classroomId) {
+        updates.projectId = null;
+      }
       
       await updateDoc(doc(db, 'users', uid), updates);
       logAction('USER_CLASS_ASSIGNED', { uid, email: targetUser?.email, classroomId });
@@ -396,8 +401,9 @@ export const AdminDashboard: React.FC = () => {
     
     // Teacher filtering
     const isInMyClassroom = u.classroomId && myClassroomIds.includes(u.classroomId);
+    const isUnassignedStudent = !u.classroomId && u.role === 'student';
     const isPendingStudent = u.status === 'pending' && u.role === 'student';
-    return isInMyClassroom || isPendingStudent || u.uid === realProfile?.uid;
+    return isInMyClassroom || isUnassignedStudent || isPendingStudent || u.uid === realProfile?.uid;
   }).sort((a, b) => (a.displayName || '').localeCompare(b.displayName || ''));
 
   // Detect duplicate accounts (same email, different UID)

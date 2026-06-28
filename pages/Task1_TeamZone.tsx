@@ -4,7 +4,7 @@ import { ZONES } from '../constants';
 import { useProject } from '../context/ProjectContext';
 import { useAuth } from '../context/AuthContext';
 import { TeamMember } from '../types';
-import { CheckCircle, FileText, UserPlus, Trash, Printer, Eye, EyeOff, Upload, Image as ImageIcon, Users, Lock, Unlock, ChevronDown, ChevronUp, Lightbulb, Info } from 'lucide-react';
+import { CheckCircle, FileText, UserPlus, Trash, Printer, Eye, EyeOff, Upload, Image as ImageIcon, Users, Lock, Unlock, ChevronDown, ChevronUp, Lightbulb, Info, Loader2 } from 'lucide-react';
 import { SaveButton } from '../components/SaveButton';
 
 const generateId = () => Math.random().toString(36).substr(2, 9);
@@ -58,7 +58,8 @@ export const Task1_TeamZone: React.FC = () => {
     updateSchoolSettings,
     updateImage,
     assignTask,
-    toggleTeamLock
+    toggleTeamLock,
+    proposeTeamLock
   } = useProject();
   const { profile } = useAuth();
   const [activeTab, setActiveTab] = useState<'instructions' | 'development' | 'distribution' | 'deliverable'>('instructions');
@@ -398,46 +399,72 @@ export const Task1_TeamZone: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Team Lock Button in Task 1 */}
+                {/* Team Lock/Proposal Workflow in Task 1 */}
                 {state.team.find(m => m.id === state.currentUser)?.isCoordinator && (
                     <div className="mt-8 pt-6 border-t border-gray-100">
-                        <div className={`p-6 rounded-2xl border-2 flex flex-col md:flex-row items-center justify-between gap-6 ${
-                            state.isTeamClosed ? 'bg-red-50 border-red-100' : 'bg-green-50 border-green-100'
-                        }`}>
-                            <div className="flex items-center gap-4">
-                                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                                    state.isTeamClosed ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'
-                                }`}>
-                                    {state.isTeamClosed ? <Lock size={24} /> : <Unlock size={24} />}
+                        {state.isTeamClosed ? (
+                            <div className="p-6 rounded-2xl border-2 bg-emerald-50 border-emerald-100 flex flex-col md:flex-row items-center justify-between gap-6">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-emerald-100 text-emerald-600">
+                                        <Lock size={24} />
+                                    </div>
+                                    <div>
+                                        <h4 className="font-black text-emerald-900">Equipo Cerrado y Validado</h4>
+                                        <p className="text-sm text-emerald-700">
+                                            Vuestro equipo ha sido oficialmente cerrado y validado por el profesor. ¡Ya podéis avanzar con el reparto de tareas y la ejecución!
+                                        </p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <h4 className={`font-black ${state.isTeamClosed ? 'text-red-900' : 'text-green-900'}`}>
-                                        {state.isTeamClosed ? 'Equipo Cerrado' : 'Equipo Abierto'}
-                                    </h4>
-                                    <p className={`text-sm ${state.isTeamClosed ? 'text-red-700' : 'text-green-700'}`}>
-                                        {state.isTeamClosed 
-                                            ? 'El equipo está sellado. Ya podéis comenzar con el reparto de tareas y la ejecución.' 
-                                            : 'Cuando todos los miembros se hayan unido, cierra el equipo para desbloquear las siguientes tareas.'}
-                                    </p>
-                                </div>
+                                <span className="px-6 py-2 bg-emerald-600 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow">
+                                    Validado
+                                </span>
                             </div>
-                            <button 
-                                onClick={() => {
-                                    if (!state.isTeamClosed && state.team.length < 3) {
-                                        alert("Se recomienda un mínimo de 3 miembros para cerrar el equipo.");
-                                    }
-                                    toggleTeamLock();
-                                }}
-                                className={`px-8 py-3 rounded-xl font-black transition-all shadow-lg flex items-center gap-2 ${
-                                    state.isTeamClosed 
-                                        ? 'bg-red-600 text-white hover:bg-red-700 shadow-red-600/20' 
-                                        : 'bg-green-600 text-white hover:bg-green-700 shadow-green-600/20'
-                                }`}
-                            >
-                                {state.isTeamClosed ? <Unlock size={20} /> : <Lock size={20} />}
-                                {state.isTeamClosed ? 'Abrir Equipo' : 'Cerrar Equipo y Comenzar'}
-                            </button>
-                        </div>
+                        ) : state.isTeamClosedProposed ? (
+                            <div className="p-6 rounded-2xl border-2 bg-amber-50 border-amber-100 flex flex-col md:flex-row items-center justify-between gap-6">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-amber-100 text-amber-600">
+                                        <Loader2 className="w-6 h-6 animate-spin" />
+                                    </div>
+                                    <div>
+                                        <h4 className="font-black text-amber-900">Propuesta de Cierre Enviada</h4>
+                                        <p className="text-sm text-amber-700">
+                                            Habéis solicitado cerrar el grupo con {state.team.length} {state.team.length === 1 ? 'miembro' : 'miembros'}. Esperando el visto bueno del profesor en su panel docente para comenzar.
+                                        </p>
+                                    </div>
+                                </div>
+                                <button 
+                                    onClick={() => proposeTeamLock(false)}
+                                    className="px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-black text-xs uppercase tracking-wider transition-all shadow-md shadow-amber-600/20"
+                                >
+                                    Cancelar Propuesta
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="p-6 rounded-2xl border-2 bg-slate-50 border-slate-200 flex flex-col md:flex-row items-center justify-between gap-6">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-slate-100 text-slate-500">
+                                        <Unlock size={24} />
+                                    </div>
+                                    <div>
+                                        <h4 className="font-black text-slate-800">Equipo Abierto</h4>
+                                        <p className="text-sm text-slate-600">
+                                            Cuando vuestro grupo esté listo y todos los compañeros se hayan unido (máx. 5), propón el cierre al profesor.
+                                        </p>
+                                    </div>
+                                </div>
+                                <button 
+                                    onClick={() => {
+                                        if (state.team.length < 3) {
+                                            alert("Se recomienda un mínimo de 3 miembros para conformar un equipo de proyecto.");
+                                        }
+                                        proposeTeamLock(true);
+                                    }}
+                                    className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-xs uppercase tracking-wider transition-all shadow-md shadow-emerald-600/20"
+                                >
+                                    Proponer Cerrar Grupo
+                                </button>
+                            </div>
+                        )}
                     </div>
                 )}
             </section>

@@ -1,4 +1,4 @@
-/* Basic CSS styles - Tailwind is loaded via CDN in index.html */
+@import "tailwindcss";
 
 :root {
   font-family: 'Inter', sans-serif;

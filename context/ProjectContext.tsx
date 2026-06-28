@@ -5,6 +5,7 @@ import { INITIAL_STATE, INITIAL_CHECKLIST } from '../constants';
 import { 
   db, 
   doc, 
+  getDoc,
   onSnapshot, 
   updateDoc, 
   setDoc, 
@@ -23,6 +24,7 @@ interface ProjectContextType {
   setCurrentUser: (id: string | null) => void;
   createProject: (name: string) => Promise<string>;
   joinProject: (code: string) => Promise<void>;
+  joinProjectById: (projectId: string) => Promise<void>;
   claimTeamMember: (tempId: string) => Promise<void>;
   joinTeamAsNewMember: (name: string) => Promise<void>;
   updateSchoolSettings: (name: string, year: string) => void;
@@ -47,6 +49,7 @@ interface ProjectContextType {
   savePeerReview: (review: PeerReview) => void;
   updateChecklistItem: (id: string, status: ChecklistStatus) => void;
   toggleTeamLock: () => void;
+  proposeTeamLock: (proposed: boolean) => void;
   resetProject: () => void;
   persistChanges: () => Promise<void>;
 }
@@ -258,6 +261,56 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
     
     await updateDoc(doc(db, 'users', user.uid), updates).catch(err => {
       handleFirestoreError(err, OperationType.UPDATE, `users/${user.uid}`);
+      throw err;
+    });
+  };
+
+  const joinProjectById = async (projectId: string) => {
+    if (!user) throw new Error("Debes iniciar sesión");
+    
+    const projectRef = doc(db, 'projects', projectId);
+    const projectDoc = await getDoc(projectRef).catch(err => {
+      handleFirestoreError(err, OperationType.GET, `projects/${projectId}`);
+      throw err;
+    });
+    
+    if (!projectDoc.exists()) {
+      throw new Error("El proyecto no existe");
+    }
+    
+    const projectData = projectDoc.data();
+    const team = projectData.team || [];
+    
+    if (team.length >= 5) {
+      throw new Error("El proyecto ya está completo (máximo 5 alumnos)");
+    }
+    if (projectData.isTeamClosed) {
+      throw new Error("El proyecto ya está cerrado");
+    }
+    
+    const alreadyInTeam = team.some((m: any) => m.id === user.uid);
+    let newTeam = [...team];
+    if (!alreadyInTeam) {
+      newTeam.push({
+        id: user.uid,
+        name: profile?.displayName || user.displayName || 'Alumno',
+        isCoordinator: team.length === 0
+      });
+    }
+    
+    const updates: any = { projectId };
+    if (projectData.classroomId) {
+      updates.classroomId = projectData.classroomId;
+      updates.status = 'approved';
+    }
+    
+    await updateDoc(doc(db, 'users', user.uid), updates).catch(err => {
+      handleFirestoreError(err, OperationType.UPDATE, `users/${user.uid}`);
+      throw err;
+    });
+
+    await updateDoc(projectRef, { team: newTeam }).catch(err => {
+      handleFirestoreError(err, OperationType.UPDATE, `projects/${projectId}`);
       throw err;
     });
   };
@@ -534,6 +587,17 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
       return { ...prev, isTeamClosed: !prev.isTeamClosed };
     });
   };
+
+  const proposeTeamLock = async (proposed: boolean) => {
+    setState(prev => {
+      const isCoordinator = prev.team.find(m => m.id === prev.currentUser)?.isCoordinator;
+      if (!isCoordinator && !adminEditMode) {
+          alert("Solo el coordinador puede proponer cerrar o abrir el equipo.");
+          return prev;
+      }
+      return { ...prev, isTeamClosedProposed: proposed };
+    });
+  };
   
   const resetProject = () => {
     setState(INITIAL_STATE);
@@ -564,10 +628,10 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
 
   return (
     <ProjectContext.Provider value={{ 
-      state, loading, setCurrentUser, createProject, joinProject, claimTeamMember, joinTeamAsNewMember, updateSchoolSettings, updateImage,
+      state, loading, setCurrentUser, createProject, joinProject, joinProjectById, claimTeamMember, joinTeamAsNewMember, updateSchoolSettings, updateImage,
       updateTeamName, updateTeamMembers, selectZone, updateZoneJustification, assignTask, updateTaskContent,
       updateConcept, updateMission, addDish, removeDish, updateDish, updateMenuPrototype, updateTask6Roles,
-      updateMemberPresentation, updateSeasonalProducts, updateInterimReport, updateCoEvaluationPoints, savePeerReview, updateChecklistItem, toggleTeamLock, resetProject, persistChanges 
+      updateMemberPresentation, updateSeasonalProducts, updateInterimReport, updateCoEvaluationPoints, savePeerReview, updateChecklistItem, toggleTeamLock, proposeTeamLock, resetProject, persistChanges 
     }}>
       {children}
     </ProjectContext.Provider>

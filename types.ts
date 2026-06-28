@@ -205,6 +205,7 @@ export interface ProjectState {
   task6: Task6Roles;
   team: TeamMember[];
   isTeamClosed?: boolean;
+  isTeamClosedProposed?: boolean;
   seasonalProducts: SeasonalProductContribution[];
   
   // --- NUEVA CONFIGURACIÓN ---

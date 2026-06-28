@@ -296,6 +296,7 @@ export const INITIAL_STATE: ProjectState = {
   },
   team: [],
   isTeamClosed: false,
+  isTeamClosedProposed: false,
   seasonalProducts: [],
   coEvaluationPoints: 1,
   coEvaluations: [],

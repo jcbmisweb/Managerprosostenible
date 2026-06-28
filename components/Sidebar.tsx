@@ -35,7 +35,7 @@ const NavItem: React.FC<NavItemProps> = ({ to, icon, label, colorClass, disabled
 );
 
 export const Sidebar: React.FC = () => {
-  const { state, resetProject, toggleTeamLock } = useProject();
+  const { state, resetProject, toggleTeamLock, proposeTeamLock } = useProject();
   const { profile, realProfile, logout, impersonateUser, updateProfile, adminEditMode, setAdminEditMode } = useAuth();
   const isAdmin = realProfile?.role === 'admin';
   const isAssistant = realProfile?.role === 'assistant';
@@ -274,8 +274,8 @@ export const Sidebar: React.FC = () => {
                 </div>
                 <div className="flex justify-between">
                     <span>Estado:</span>
-                    <span className={`font-bold ${state.isTeamClosed ? 'text-red-600' : 'text-green-600'}`}>
-                      {state.isTeamClosed ? 'Cerrado' : 'Abierto'}
+                    <span className={`font-bold ${state.isTeamClosed ? 'text-red-600' : state.isTeamClosedProposed ? 'text-amber-600' : 'text-green-600'}`}>
+                      {state.isTeamClosed ? 'Cerrado' : state.isTeamClosedProposed ? 'Pendiente' : 'Abierto'}
                     </span>
                 </div>
                 <div className="flex justify-between">
@@ -292,20 +292,28 @@ export const Sidebar: React.FC = () => {
             
             {/* Lock/Unlock Team Button (Only for Coordinator) */}
             {state.team.find(m => m.id === state.currentUser)?.isCoordinator && (
-              <button 
-                onClick={toggleTeamLock}
-                className={`w-full mt-3 flex items-center justify-center gap-2 py-1.5 rounded-lg text-[10px] font-bold transition-all border ${
-                  state.isTeamClosed 
-                    ? 'bg-red-50 text-red-600 border-red-100 hover:bg-red-100' 
-                    : 'bg-green-50 text-green-600 border-green-100 hover:bg-green-100'
-                }`}
-              >
+              <>
                 {state.isTeamClosed ? (
-                  <><Unlock size={12} /> Abrir Equipo</>
+                  <div className="w-full mt-3 flex items-center justify-center gap-1.5 py-1 text-[9px] font-black text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-lg">
+                    <ShieldCheck size={11} />
+                    <span>Equipo Validado</span>
+                  </div>
+                ) : state.isTeamClosedProposed ? (
+                  <button 
+                    onClick={() => proposeTeamLock(false)}
+                    className="w-full mt-3 flex items-center justify-center gap-2 py-1.5 rounded-lg text-[10px] font-bold transition-all border bg-amber-50 text-amber-600 border-amber-100 hover:bg-amber-100"
+                  >
+                    <Unlock size={12} /> Cancelar Propuesta
+                  </button>
                 ) : (
-                  <><Lock size={12} /> Cerrar Equipo</>
-                )}
-              </button>
+                  <button 
+                    onClick={() => proposeTeamLock(true)}
+                    className="w-full mt-3 flex items-center justify-center gap-2 py-1.5 rounded-lg text-[10px] font-bold transition-all border bg-green-50 text-green-600 border-green-100 hover:bg-green-100"
+                  >
+                    <Lock size={12} /> Proponer Cierre
+                  </button>
+                ) as any}
+              </>
             )}
         </div>
         
