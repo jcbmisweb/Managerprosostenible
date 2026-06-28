@@ -1,0 +1,8 @@
+{
+  "name": "Manager pro Sostenible",
+  "description": "A comprehensive tool for gastronomy students to manage their \u0027Manager pro Sostenible\u0027 restaurant project, from zone selection to menu design and final memory generation.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
