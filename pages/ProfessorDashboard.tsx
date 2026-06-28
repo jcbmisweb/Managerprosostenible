@@ -146,10 +146,17 @@ export const ProfessorDashboard: React.FC = () => {
         createdAt: new Date().toISOString()
       };
       
-      await setDoc(doc(db, 'classrooms', classroomId), newClassroom);
+      const setDocPromise = setDoc(doc(db, 'classrooms', classroomId), newClassroom);
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error("La operación tardó demasiado. Comprueba tu conexión a internet.")), 10000)
+      );
+      
+      await Promise.race([setDocPromise, timeoutPromise]);
+      
       setNewClassroomName('');
       logAction('CLASSROOM_CREATED', { id: classroomId, name: newClassroom.name, code });
     } catch (err: any) {
+      console.error("Error creating classroom:", err);
       setClassroomsError(err.message || "Error al crear el aula");
     } finally {
       setCreatingClassroom(false);
@@ -472,29 +479,31 @@ export const ProfessorDashboard: React.FC = () => {
             </h3>
             <p className="text-slate-500 text-sm mb-6">Elige un nombre descriptivo para agrupar a tus estudiantes y organizar sus proyectos.</p>
             
-            <form onSubmit={handleCreateClassroom} className="flex flex-col sm:flex-row gap-3">
-              <input
-                type="text"
-                required
-                placeholder="Nombre de la nueva clase o aula..."
-                value={newClassroomName}
-                onChange={(e) => setNewClassroomName(e.target.value)}
-                className="flex-1 px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all font-medium text-sm"
-              />
-              <button
-                type="submit"
-                disabled={creatingClassroom || !newClassroomName.trim()}
-                className="bg-slate-900 text-white hover:bg-slate-800 px-6 py-3.5 rounded-xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all disabled:opacity-50"
-              >
-                <Plus size={16} />
-                Crear Aula
-              </button>
+            <form onSubmit={handleCreateClassroom} className="flex flex-col gap-3">
+              {classroomsError && (
+                <p className="text-red-500 text-xs font-bold bg-red-50 border border-red-100 p-3 rounded-xl mb-2">
+                  {classroomsError}
+                </p>
+              )}
+              <div className="flex flex-col sm:flex-row gap-3">
+                <input
+                  type="text"
+                  required
+                  placeholder="Nombre de la nueva clase o aula..."
+                  value={newClassroomName}
+                  onChange={(e) => setNewClassroomName(e.target.value)}
+                  className="flex-1 px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all font-medium text-sm"
+                />
+                <button
+                  type="submit"
+                  disabled={creatingClassroom || !newClassroomName.trim()}
+                  className="bg-slate-900 text-white hover:bg-slate-800 px-6 py-3.5 rounded-xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+                >
+                  <Plus size={16} />
+                  Crear Aula
+                </button>
+              </div>
             </form>
-            {classroomsError && (
-              <p className="text-red-500 text-xs font-bold mt-3 bg-red-50 border border-red-100 p-3 rounded-xl">
-                {classroomsError}
-              </p>
-            )}
           </div>
 
           {/* List Classrooms */}
