@@ -1,10 +1,10 @@
 {
-  "projectId": "feisty-brand-ldpgw",
-  "appId": "1:639043349984:web:1314c6adc30d941cc3cf85",
-  "apiKey": "AIzaSyCfRRIWqlaGlJRbRfJegyIjSr5rFJYyMZM",
-  "authDomain": "feisty-brand-ldpgw.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-managerprososten-6c07aaa0-b6d2-4a8d-b784-735e39b6fa4f",
-  "storageBucket": "feisty-brand-ldpgw.firebasestorage.app",
-  "messagingSenderId": "639043349984",
-  "measurementId": ""
+  "projectId": "managerprosostenible",
+  "appId": "1:1063647365271:web:09ca86956d0edbd07d01d2",
+  "apiKey": "AIzaSyAP9fVms4UE7HB6FIDd0fZxz3WoI0rnon4",
+  "authDomain": "managerprosostenible.firebaseapp.com",
+  "firestoreDatabaseId": "(default)",
+  "storageBucket": "managerprosostenible.firebasestorage.app",
+  "messagingSenderId": "1063647365271",
+  "measurementId": "G-XXGN7KVX5R"
 }
