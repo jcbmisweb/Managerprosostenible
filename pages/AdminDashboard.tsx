@@ -109,7 +109,7 @@ export const AdminDashboard: React.FC = () => {
     const unsubAllUsers = onSnapshot(qAllUsers, (snapshot) => {
       setAllUsers(snapshot.docs.map(d => d.data() as UserProfile));
     }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'users');
+      console.error("Error listening to all users:", error);
     });
 
     // Listen to pending users
@@ -117,7 +117,7 @@ export const AdminDashboard: React.FC = () => {
     const unsubPending = onSnapshot(qPending, (snapshot) => {
       setPendingUsers(snapshot.docs.map(d => d.data() as UserProfile));
     }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'users');
+      console.error("Error listening to pending users:", error);
     });
 
     // Listen to all projects
@@ -125,7 +125,7 @@ export const AdminDashboard: React.FC = () => {
     const unsubProjects = onSnapshot(qProjects, (snapshot) => {
       setAllProjects(snapshot.docs.map(d => ({id: d.id, ...d.data()} as ProjectSummary)));
     }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'projects');
+      console.error("Error listening to projects:", error);
     });
 
     // Listen to audit logs
@@ -134,7 +134,7 @@ export const AdminDashboard: React.FC = () => {
       const logs = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as AuditLog));
       setAuditLogs(logs.sort((a, b) => b.timestamp?.seconds - a.timestamp?.seconds));
     }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'audit_logs');
+      console.error("Error listening to audit logs:", error);
     });
 
     // Listen to classrooms
@@ -144,15 +144,15 @@ export const AdminDashboard: React.FC = () => {
     const unsubClassrooms = onSnapshot(qClassrooms, (snapshot) => {
       setClassrooms(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Classroom)));
     }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'classrooms');
+      console.error("Error listening to classrooms:", error);
     });
 
     return () => {
-      unsubAllUsers();
-      unsubPending();
-      unsubProjects();
-      unsubAudit();
-      unsubClassrooms();
+      if (unsubAllUsers) unsubAllUsers();
+      if (unsubPending) unsubPending();
+      if (unsubProjects) unsubProjects();
+      if (unsubAudit) unsubAudit();
+      if (unsubClassrooms) unsubClassrooms();
     };
   }, [realProfile, isSuperAdmin]);
 
@@ -383,8 +383,10 @@ export const AdminDashboard: React.FC = () => {
   const myClassroomIds = classrooms.map(c => c.id);
 
   const filteredUsers = allUsers.filter(u => {
-    const matchesSearch = u.displayName.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          u.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const displayName = u.displayName || '';
+    const email = u.email || '';
+    const matchesSearch = displayName.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          email.toLowerCase().includes(searchTerm.toLowerCase());
     if (!matchesSearch) return false;
     
     // Global filter from sidebar/header
@@ -396,22 +398,27 @@ export const AdminDashboard: React.FC = () => {
     const isInMyClassroom = u.classroomId && myClassroomIds.includes(u.classroomId);
     const isPendingStudent = u.status === 'pending' && u.role === 'student';
     return isInMyClassroom || isPendingStudent || u.uid === realProfile?.uid;
-  }).sort((a, b) => a.displayName.localeCompare(b.displayName));
+  }).sort((a, b) => (a.displayName || '').localeCompare(b.displayName || ''));
 
   // Detect duplicate accounts (same email, different UID)
   const duplicateEmails = allUsers.reduce((acc: {[email: string]: number}, user) => {
-    const email = user.email.toLowerCase().trim();
+    const email = (user.email || '').toLowerCase().trim();
     acc[email] = (acc[email] || 0) + 1;
     return acc;
   }, {});
 
   const filteredLogins = allUsers.filter(u => {
-    const matchesSearch = u.displayName.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          u.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const displayName = u.displayName || '';
+    const email = u.email || '';
+    const matchesSearch = displayName.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          email.toLowerCase().includes(searchTerm.toLowerCase());
     if (!matchesSearch) return false;
     
-    // Global filter from sidebar/header
-    if (filterClassroomId && u.classroomId !== filterClassroomId) return false;
+    // Global filter from sidebar/header: do NOT filter out pending users or users without a classroom
+    // so that new logins are ALWAYS visible in this registry tab even if a classroom is selected.
+    if (filterClassroomId && u.classroomId !== filterClassroomId && u.status !== 'pending' && u.classroomId != null) {
+      return false;
+    }
     
     // Login tab specific filters
     if (loginFilter === 'pending') return u.status === 'pending';
@@ -424,13 +431,13 @@ export const AdminDashboard: React.FC = () => {
     if (a.status === 'pending' && b.status !== 'pending') return -1;
     if (a.status !== 'pending' && b.status === 'pending') return 1;
     if (a.lastLogin && b.lastLogin) return b.lastLogin.localeCompare(a.lastLogin);
-    return a.displayName.localeCompare(b.displayName);
+    return (a.displayName || '').localeCompare(b.displayName || '');
   });
 
   const filteredProjects = allProjects.filter(p => {
-    const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          p.teamName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          p.code.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = (p.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          (p.teamName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          (p.code || '').toLowerCase().includes(searchTerm.toLowerCase());
     if (!matchesSearch) return false;
     
     // Global filter from sidebar/header

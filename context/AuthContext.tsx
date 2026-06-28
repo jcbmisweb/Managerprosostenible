@@ -81,69 +81,76 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         try {
           unsubProfile = onSnapshot(userRef, async (docSnap) => {
-            if (docSnap.exists()) {
-              const data = docSnap.data() as UserProfile;
-              const email = firebaseUser.email?.toLowerCase().trim() || '';
-              const isAdminEmail = ADMIN_EMAILS.includes(email);
-              
-              // Force admin role if email matches
-              if (isAdminEmail) {
-                if (data.role !== 'admin' || data.status !== 'approved') {
-                  const updatedProfile = { ...data, role: 'admin' as const, status: 'approved' as const };
-                  updateDoc(userRef, updatedProfile).catch(err => handleFirestoreError(err, OperationType.UPDATE, `users/${firebaseUser.uid}`));
-                  setRealProfile(updatedProfile);
+            try {
+              if (docSnap.exists()) {
+                const data = docSnap.data() as UserProfile;
+                const email = firebaseUser.email?.toLowerCase().trim() || '';
+                const isAdminEmail = ADMIN_EMAILS.includes(email);
+                
+                // Force admin role if email matches
+                if (isAdminEmail) {
+                  if (data.role !== 'admin' || data.status !== 'approved') {
+                    const updatedProfile = { ...data, role: 'admin' as const, status: 'approved' as const };
+                    updateDoc(userRef, updatedProfile).catch(err => {
+                      console.error("Error forcing admin role in Firestore:", err);
+                    });
+                    setRealProfile(updatedProfile);
+                  } else {
+                    setRealProfile(data);
+                  }
                 } else {
                   setRealProfile(data);
                 }
-              } else {
-                setRealProfile(data);
-              }
 
-              // Si el admin está suplantando a alguien
-              if (data.impersonatingUid) {
-                if (unsubImpersonated) unsubImpersonated();
-                unsubImpersonated = onSnapshot(doc(db, 'users', data.impersonatingUid), (impSnap) => {
-                  if (impSnap.exists()) {
-                    setImpersonatedProfile(impSnap.data() as UserProfile);
-                  } else {
-                    setImpersonatedProfile(null);
+                // Si el admin está suplantando a alguien
+                if (data.impersonatingUid) {
+                  if (unsubImpersonated) unsubImpersonated();
+                  unsubImpersonated = onSnapshot(doc(db, 'users', data.impersonatingUid), (impSnap) => {
+                    if (impSnap.exists()) {
+                      setImpersonatedProfile(impSnap.data() as UserProfile);
+                    } else {
+                      setImpersonatedProfile(null);
+                    }
+                  }, (error) => {
+                    console.error("Error in impersonated user snapshot:", error);
+                  });
+                } else {
+                  setImpersonatedProfile(null);
+                  if (unsubImpersonated) {
+                    unsubImpersonated();
+                    unsubImpersonated = undefined;
                   }
-                }, (error) => {
-                  handleFirestoreError(error, OperationType.GET, `users/${data.impersonatingUid}`);
-                });
-              } else {
-                setImpersonatedProfile(null);
-                if (unsubImpersonated) {
-                  unsubImpersonated();
-                  unsubImpersonated = undefined;
                 }
-              }
 
-              setLoading(false);
-            } else {
-              // Crear perfil si no existe
-              const email = firebaseUser.email?.toLowerCase().trim() || '';
-              const isAdminEmail = ADMIN_EMAILS.includes(email);
-              const newProfile: UserProfile = {
-                uid: firebaseUser.uid,
-                email: email,
-                displayName: firebaseUser.displayName || '',
-                photoURL: firebaseUser.photoURL || '',
-                role: isAdminEmail ? 'admin' : 'student',
-                status: isAdminEmail ? 'approved' : 'pending',
-                classroomId: null,
-                lastLogin: new Date().toISOString(),
-              };
-              try {
-                await setDoc(userRef, newProfile);
-                setRealProfile(newProfile);
-              } catch (err) {
-                handleFirestoreError(err, OperationType.CREATE, `users/${firebaseUser.uid}`);
+                setLoading(false);
+              } else {
+                // Crear perfil si no existe
+                const email = firebaseUser.email?.toLowerCase().trim() || '';
+                const isAdminEmail = ADMIN_EMAILS.includes(email);
+                const newProfile: UserProfile = {
+                  uid: firebaseUser.uid,
+                  email: email,
+                  displayName: firebaseUser.displayName || '',
+                  photoURL: firebaseUser.photoURL || '',
+                  role: isAdminEmail ? 'admin' : 'student',
+                  status: isAdminEmail ? 'approved' : 'pending',
+                  classroomId: null,
+                  lastLogin: new Date().toISOString(),
+                };
+                try {
+                  await setDoc(userRef, newProfile);
+                  setRealProfile(newProfile);
+                } catch (err) {
+                  console.error("Error creating new user document:", err);
+                }
+                setLoading(false);
               }
+            } catch (innerErr) {
+              console.error("Uncaught error processing user snapshot:", innerErr);
               setLoading(false);
             }
           }, (error) => {
-            handleFirestoreError(error, OperationType.GET, `users/${firebaseUser.uid}`);
+            console.error("Firestore user onSnapshot error:", error);
             setLoading(false);
           });
         } catch (err) {
