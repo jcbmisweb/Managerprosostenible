@@ -47,7 +47,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const ADMIN_EMAILS = ['juan.codina@murciaeduca.es', 'jcbbinger@gmail.com', 'jcbmisweb@gmail.com'];
+const ADMIN_EMAILS = ['juan.codina@murciaeduca.es'];
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<FirebaseUser | null>(null);
