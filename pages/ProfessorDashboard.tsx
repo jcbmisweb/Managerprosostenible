@@ -86,10 +86,8 @@ export const ProfessorDashboard: React.FC = () => {
     const unsubscribe = onSnapshot(qClassrooms, (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Classroom));
       setClassrooms(data);
-      setClassroomsError(null);
     }, (error) => {
       console.error("Error fetching classrooms:", error);
-      setClassroomsError("Error al cargar tus aulas");
     });
 
     return () => unsubscribe();
