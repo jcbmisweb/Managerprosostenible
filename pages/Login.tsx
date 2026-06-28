@@ -25,6 +25,8 @@ export const Login: React.FC = () => {
 
     if (err.code === 'auth/popup-blocked') {
       setError(`El navegador bloqueó la ventana emergente. Prueba el botón 'Entrar por Redirección' o pulsa 'Abrir en pestaña nueva'.`);
+    } else if (err.code === 'auth/operation-not-allowed') {
+      setError(`ERROR (auth/operation-not-allowed): El inicio de sesión con Google no está activado en tu proyecto Firebase. Ve a la consola de Firebase -> Authentication -> pestaña 'Sign-in method' -> pulsa 'Añadir nuevo proveedor' -> selecciona 'Google' -> activa 'Habilitar' y guarda.`);
     } else if (err.code === 'auth/unauthorized-domain' || (err.message && err.message.includes('unauthorized domain'))) {
       setError(`DOMINIO NO AUTORIZADO: Debes añadir "${domain}" y "${authDomain}" en la consola de Firebase.`);
     } else if (err.code === 'auth/popup-closed-by-user') {
@@ -95,6 +97,9 @@ export const Login: React.FC = () => {
               <div className="space-y-1 mb-4 select-all">
                 <div className="bg-black/20 p-2 rounded border border-white/5 font-mono text-white normal-case">{window.location.hostname}</div>
                 <div className="bg-black/20 p-2 rounded border border-white/5 font-mono text-white normal-case">{auth.app.options.authDomain}</div>
+                <div className="bg-black/20 p-2 rounded border border-white/5 font-mono text-white normal-case">sostenible-phi.vercel.app</div>
+                <div className="bg-black/20 p-2 rounded border border-white/5 font-mono text-white normal-case">ais-dev-wul5yyxrej5nc3vweoy47c-965329406022.europe-west2.run.app</div>
+                <div className="bg-black/20 p-2 rounded border border-white/5 font-mono text-white normal-case">ais-pre-wul5yyxrej5nc3vweoy47c-965329406022.europe-west2.run.app</div>
               </div>
               <ul className="list-decimal list-inside space-y-1">
                 <li>Asegúrate de que Google esté HABILITADO.</li>
