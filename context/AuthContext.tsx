@@ -126,7 +126,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               const isAdminEmail = ADMIN_EMAILS.includes(email);
               const newProfile: UserProfile = {
                 uid: firebaseUser.uid,
-                email: firebaseUser.email || '',
+                email: email,
                 displayName: firebaseUser.displayName || '',
                 photoURL: firebaseUser.photoURL || '',
                 role: isAdminEmail ? 'admin' : 'student',
