@@ -84,7 +84,8 @@ export const AdminDashboard: React.FC = () => {
   const [classrooms, setClassrooms] = useState<Classroom[]>([]);
   
   // Tab states and filtering
-  const [activeTab, setActiveTab] = useState<'classrooms' | 'users' | 'projects' | 'audit' | 'evaluations'>('classrooms');
+  const [activeTab, setActiveTab] = useState<'logins' | 'classrooms' | 'users' | 'projects' | 'audit' | 'evaluations'>('logins');
+  const [loginFilter, setLoginFilter] = useState<'all' | 'pending' | 'approved' | 'student' | 'professor'>('all');
   const [viewMode, setViewMode] = useState<'admin' | 'professor' | 'student'>('admin');
   const [searchTerm, setSearchTerm] = useState('');
   const [newClassroomName, setNewClassroomName] = useState('');
@@ -404,6 +405,28 @@ export const AdminDashboard: React.FC = () => {
     return acc;
   }, {});
 
+  const filteredLogins = allUsers.filter(u => {
+    const matchesSearch = u.displayName.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          u.email.toLowerCase().includes(searchTerm.toLowerCase());
+    if (!matchesSearch) return false;
+    
+    // Global filter from sidebar/header
+    if (filterClassroomId && u.classroomId !== filterClassroomId) return false;
+    
+    // Login tab specific filters
+    if (loginFilter === 'pending') return u.status === 'pending';
+    if (loginFilter === 'approved') return u.status === 'approved';
+    if (loginFilter === 'student') return u.role === 'student';
+    if (loginFilter === 'professor') return u.role === 'assistant';
+    
+    return true;
+  }).sort((a, b) => {
+    if (a.status === 'pending' && b.status !== 'pending') return -1;
+    if (a.status !== 'pending' && b.status === 'pending') return 1;
+    if (a.lastLogin && b.lastLogin) return b.lastLogin.localeCompare(a.lastLogin);
+    return a.displayName.localeCompare(b.displayName);
+  });
+
   const filteredProjects = allProjects.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           p.teamName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -437,6 +460,18 @@ export const AdminDashboard: React.FC = () => {
         </div>
 
         <nav className="flex-1 p-4 space-y-2">
+          <button
+            onClick={() => setActiveTab('logins')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'logins' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+          >
+            <ShieldCheck className="w-5 h-5" />
+            <span className="font-medium font-bold text-sm">Registro de Logins</span>
+            {pendingUsers.length > 0 && (
+              <span className="ml-auto bg-amber-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full animate-pulse">
+                {pendingUsers.length}
+              </span>
+            )}
+          </button>
           <button
             onClick={() => setActiveTab('classrooms')}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'classrooms' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
@@ -516,15 +551,17 @@ export const AdminDashboard: React.FC = () => {
           <div>
             <div className="flex items-center gap-3">
               <h2 className="text-3xl font-black text-slate-900 tracking-tight">
-                {activeTab === 'classrooms' 
-                  ? 'Gestión de Aulas' 
-                  : activeTab === 'users' 
-                    ? 'Alumnos y Personal' 
-                    : activeTab === 'projects' 
-                      ? 'Explorador de Proyectos' 
-                      : activeTab === 'evaluations'
-                        ? 'Coevaluaciones'
-                        : 'Registro de Auditoría'}
+                {activeTab === 'logins'
+                  ? 'Registro y Control de Accesos'
+                  : activeTab === 'classrooms' 
+                    ? 'Gestión de Aulas' 
+                    : activeTab === 'users' 
+                      ? 'Alumnos y Personal' 
+                      : activeTab === 'projects' 
+                        ? 'Explorador de Proyectos' 
+                        : activeTab === 'evaluations'
+                          ? 'Coevaluaciones'
+                          : 'Registro de Auditoría'}
               </h2>
               {filterClassroomId && (
                 <span className="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider flex items-center gap-1.5 border border-emerald-200">
@@ -534,15 +571,17 @@ export const AdminDashboard: React.FC = () => {
               )}
             </div>
             <p className="text-slate-500 font-medium text-sm mt-1">
-              {activeTab === 'classrooms'
-                ? 'Crea aulas para organizar a tus alumnos e invítalos usando el código generado.'
-                : activeTab === 'users'
-                  ? 'Gestiona el acceso, aulas, roles y estados de tus estudiantes.'
-                  : activeTab === 'projects'
-                    ? 'Visualiza y supervisa los proyectos de los equipos.'
-                    : activeTab === 'evaluations'
-                      ? 'Resultados y observaciones de las coevaluaciones de los alumnos.'
-                      : 'Historial de acciones críticas del sistema.'}
+              {activeTab === 'logins'
+                ? 'Monitorea todas las cuentas que han ingresado a la web. Concédeles acceso, asígnalas a un aula o suspéndelas en tiempo real.'
+                : activeTab === 'classrooms'
+                  ? 'Crea aulas para organizar a tus alumnos e invítalos usando el código generado.'
+                  : activeTab === 'users'
+                    ? 'Gestiona el acceso, aulas, roles y estados de tus estudiantes.'
+                    : activeTab === 'projects'
+                      ? 'Visualiza y supervisa los proyectos de los equipos.'
+                      : activeTab === 'evaluations'
+                        ? 'Resultados y observaciones de las coevaluaciones de los alumnos.'
+                        : 'Historial de acciones críticas del sistema.'}
             </p>
           </div>
 
@@ -573,6 +612,324 @@ export const AdminDashboard: React.FC = () => {
             </div>
           </div>
         </header>
+
+        {activeTab === 'logins' && (
+          <>
+            {/* Bento-grid Stats for Logins */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+              <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm flex items-center gap-4">
+                <div className="bg-slate-50 p-4 rounded-2xl text-slate-600">
+                  <Users size={24} />
+                </div>
+                <div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Inicios de Sesión</p>
+                  <p className="text-3xl font-black text-slate-900">{allUsers.length}</p>
+                  <p className="text-xs text-slate-500 font-medium mt-1">Cuentas registradas</p>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm flex items-center gap-4">
+                <div className="bg-amber-50 p-4 rounded-2xl text-amber-600">
+                  <Clock size={24} />
+                </div>
+                <div>
+                  <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest">Pendientes de Acceso</p>
+                  <p className="text-3xl font-black text-amber-700">{pendingUsers.length}</p>
+                  <p className="text-xs text-amber-500 font-medium mt-1">Esperando aprobación</p>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm flex items-center gap-4">
+                <div className="bg-emerald-50 p-4 rounded-2xl text-emerald-600">
+                  <UserCheck size={24} />
+                </div>
+                <div>
+                  <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Accesos Permitidos</p>
+                  <p className="text-3xl font-black text-emerald-700">{allUsers.filter(u => u.status === 'approved').length}</p>
+                  <p className="text-xs text-slate-500 font-medium mt-1">Cuentas habilitadas</p>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm flex items-center gap-4">
+                <div className="bg-red-50 p-4 rounded-2xl text-red-500">
+                  <PauseCircle size={24} />
+                </div>
+                <div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Accesos Suspendidos</p>
+                  <p className="text-3xl font-black text-red-600">{allUsers.filter(u => u.status === 'suspended').length}</p>
+                  <p className="text-xs text-slate-500 font-medium mt-1">Cuentas pausadas</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Informative Help Card */}
+            <div className="bg-emerald-50 border border-emerald-100 rounded-3xl p-6 mb-8 flex items-start gap-4 shadow-sm">
+              <div className="bg-emerald-100 p-3 rounded-2xl text-emerald-600 shrink-0">
+                <ShieldCheck className="w-6 h-6" />
+              </div>
+              <div className="space-y-1">
+                <h4 className="text-sm font-black text-emerald-900 uppercase tracking-wide">¿Cómo funciona el Control de Acceso Automático?</h4>
+                <p className="text-xs text-emerald-700 leading-relaxed">
+                  Cualquier persona que inicie sesión con su cuenta de Google en la web queda registrada aquí en tiempo real de forma segura. 
+                  Por defecto, su acceso está <strong>"Pendiente"</strong>. Al pulsar <strong>"Habilitar Alumno"</strong> o asignarle un <strong>Aula</strong>, 
+                  se le concederá acceso inmediato y se le redireccionará automáticamente a su espacio académico.
+                </p>
+              </div>
+            </div>
+
+            {/* Filters Row */}
+            <div className="bg-white rounded-3xl border border-slate-100 p-4 mb-6 flex flex-wrap items-center justify-between gap-4 shadow-sm">
+              <div className="flex flex-wrap gap-2">
+                {(['all', 'pending', 'approved', 'student', 'professor'] as const).map((filter) => {
+                  const isActive = loginFilter === filter;
+                  const label = filter === 'all' ? 'Todos' :
+                                filter === 'pending' ? `Pendientes (${pendingUsers.length})` :
+                                filter === 'approved' ? 'Aprobados' :
+                                filter === 'student' ? 'Alumnos' : 'Profesores';
+                  
+                  return (
+                    <button
+                      key={filter}
+                      onClick={() => setLoginFilter(filter)}
+                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                        isActive 
+                          ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/10' 
+                          : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">
+                Mostrando {filteredLogins.length} de {allUsers.length} cuentas registradas
+              </p>
+            </div>
+
+            {/* Main Logins Table */}
+            <div className="bg-white rounded-[2rem] border border-slate-100 overflow-hidden shadow-sm">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse min-w-[900px]">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                      <th className="p-5 pl-8">Cuenta / Email</th>
+                      <th className="p-5">Estado</th>
+                      <th className="p-5">Rol Asignado</th>
+                      <th className="p-5">Redirección a Aula</th>
+                      <th className="p-5">Última Conexión</th>
+                      <th className="p-5 pr-8 text-right">Acciones Rápidas</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {filteredLogins.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="py-24 text-center">
+                          <Users className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+                          <p className="text-slate-500 font-bold text-lg">No se encontraron cuentas</p>
+                          <p className="text-slate-400 text-sm font-medium mt-1">Prueba a buscar otro término o cambia los filtros de acceso.</p>
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredLogins.map((user) => {
+                        const isRoot = isRootAdmin(user.email);
+                        const isUserSuspended = user.status === 'suspended';
+                        const isUserPending = user.status === 'pending';
+                        
+                        return (
+                          <tr key={user.uid} className="hover:bg-slate-50/30 transition-colors">
+                            <td className="p-5 pl-8">
+                              <div className="flex items-center gap-4">
+                                <div className="relative shrink-0">
+                                  <img 
+                                    src={user.photoURL || 'https://api.dicebear.com/7.x/avataaars/svg?seed=fallback'} 
+                                    alt="" 
+                                    className="w-11 h-11 rounded-full border border-slate-200 bg-white" 
+                                  />
+                                  {isUserPending ? (
+                                    <div className="absolute -bottom-1 -right-1 bg-amber-500 text-white rounded-full p-0.5 border-2 border-white animate-pulse">
+                                      <Clock className="w-3 h-3" />
+                                    </div>
+                                  ) : isUserSuspended ? (
+                                    <div className="absolute -bottom-1 -right-1 bg-red-500 text-white rounded-full p-0.5 border-2 border-white">
+                                      <PauseCircle className="w-3 h-3" />
+                                    </div>
+                                  ) : (
+                                    <div className="absolute -bottom-1 -right-1 bg-emerald-500 text-white rounded-full p-0.5 border-2 border-white">
+                                      <CheckCircle className="w-3 h-3" />
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="min-w-0">
+                                  <h4 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                                    <span className="truncate">{user.displayName || 'Sin Nombre'}</span>
+                                    {duplicateEmails[user.email.toLowerCase().trim()] > 1 && (
+                                      <span className="text-[8px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-md font-black uppercase tracking-wider shrink-0" title="Cuenta Duplicada">DUPLICADA</span>
+                                    )}
+                                    {isRoot && (
+                                      <span className="text-[8px] bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded-md font-black uppercase tracking-wider shrink-0">SÚPER ADMIN</span>
+                                    )}
+                                  </h4>
+                                  <p className="text-xs text-slate-400 font-mono tracking-tight truncate mt-0.5">{user.email}</p>
+                                </div>
+                              </div>
+                            </td>
+
+                            <td className="p-5">
+                              {isUserPending ? (
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-600 text-[10px] font-black rounded-lg border border-amber-100 uppercase tracking-wider animate-pulse">
+                                  <Clock className="w-3 h-3" />
+                                  Pendiente
+                                </span>
+                              ) : isUserSuspended ? (
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-50 text-red-600 text-[10px] font-black rounded-lg border border-red-100 uppercase tracking-wider">
+                                  <PauseCircle className="w-3 h-3" />
+                                  Suspendido
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-600 text-[10px] font-black rounded-lg border border-emerald-100 uppercase tracking-wider">
+                                  <CheckCircle className="w-3 h-3" />
+                                  Permitido
+                                </span>
+                              )}
+                            </td>
+
+                            <td className="p-5">
+                              {isRoot ? (
+                                <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-xl border border-indigo-100 uppercase tracking-wide">
+                                  Súper Administrador
+                                </span>
+                              ) : (
+                                <select
+                                  disabled={!canManageUsers || isRoot}
+                                  value={user.role}
+                                  onChange={(e) => handleRoleChange(user.uid, e.target.value as any)}
+                                  className="bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs font-bold py-1.5 px-3 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                                >
+                                  <option value="student">Alumno</option>
+                                  <option value="assistant">Profesor / Asistente</option>
+                                  <option value="admin">Administrador</option>
+                                </select>
+                              )}
+                            </td>
+
+                            <td className="p-5">
+                              {user.role === 'admin' ? (
+                                <span className="text-xs text-slate-400 italic">No aplicable (Admin)</span>
+                              ) : (
+                                <select
+                                  disabled={!canManageUsers || isRoot}
+                                  value={user.classroomId || ''}
+                                  onChange={(e) => handleAssignClassroom(user.uid, e.target.value ? e.target.value : null)}
+                                  className="w-full max-w-[200px] bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs font-bold py-1.5 px-3 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                                >
+                                  <option value="">-- Sin Aula (Waiting Room) --</option>
+                                  {classrooms.map((cls) => (
+                                    <option key={cls.id} value={cls.id}>
+                                      {cls.name}
+                                    </option>
+                                  ))}
+                                </select>
+                              )}
+                            </td>
+
+                            <td className="p-5 whitespace-nowrap">
+                              {user.lastLogin ? (
+                                <div className="flex flex-col">
+                                  <span className="text-xs font-bold text-slate-700">
+                                    {new Date(user.lastLogin).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
+                                  </span>
+                                  <span className="text-[10px] text-slate-400 font-medium font-mono mt-0.5">
+                                    {new Date(user.lastLogin).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+                                  </span>
+                                </div>
+                              ) : (
+                                <span className="text-xs text-slate-400 font-mono">Nunca</span>
+                              )}
+                            </td>
+
+                            <td className="p-5 pr-8 whitespace-nowrap text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                {isUserPending && !isRoot ? (
+                                  <>
+                                    <button
+                                      onClick={async () => {
+                                        // Quick approve as student
+                                        await updateDoc(doc(db, 'users', user.uid), { 
+                                          status: 'approved',
+                                          role: 'student'
+                                        });
+                                        logAction('USER_APPROVED', { uid: user.uid, email: user.email });
+                                      }}
+                                      title="Dar acceso como Alumno"
+                                      className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] uppercase tracking-wider px-3.5 py-2 rounded-xl transition-all shadow-sm flex items-center gap-1.5"
+                                    >
+                                      <UserCheck size={14} />
+                                      Habilitar Alumno
+                                    </button>
+                                    <button
+                                      onClick={async () => {
+                                        // Quick approve as teacher
+                                        await updateDoc(doc(db, 'users', user.uid), { 
+                                          status: 'approved',
+                                          role: 'assistant'
+                                        });
+                                        logAction('USER_APPROVED', { uid: user.uid, email: user.email });
+                                      }}
+                                      title="Dar acceso como Profesor"
+                                      className="bg-indigo-600 hover:bg-indigo-700 text-white font-black text-[10px] uppercase tracking-wider px-3.5 py-2 rounded-xl transition-all shadow-sm flex items-center gap-1.5"
+                                    >
+                                      <ShieldCheck size={14} />
+                                      Profesor
+                                    </button>
+                                  </>
+                                ) : (
+                                  <>
+                                    {!isRoot && (
+                                      <button
+                                        onClick={() => impersonateUser(user.uid)}
+                                        title="Suplantar"
+                                        className="bg-blue-50 text-blue-600 p-2.5 rounded-xl hover:bg-blue-600 hover:text-white transition-all"
+                                      >
+                                        <Ghost size={16} />
+                                      </button>
+                                    )}
+                                    {canManageUsers && !isRoot && user.uid !== realProfile?.uid && (
+                                      <>
+                                        <button
+                                          onClick={() => suspendUser(user.uid, user.status)}
+                                          title={isUserSuspended ? "Activar cuenta" : "Suspender cuenta"}
+                                          className={`p-2.5 rounded-xl transition-all ${
+                                            isUserSuspended 
+                                              ? 'bg-amber-100 text-amber-700 hover:bg-emerald-100 hover:text-emerald-700' 
+                                              : 'bg-slate-100 text-slate-500 hover:bg-amber-100 hover:text-amber-700'
+                                          }`}
+                                        >
+                                          {isUserSuspended ? <PlayCircle size={16} /> : <PauseCircle size={16} />}
+                                        </button>
+                                        <button
+                                          onClick={() => rejectUser(user.uid)}
+                                          title="Eliminar permanentemente"
+                                          className="bg-slate-100 text-slate-400 p-2.5 rounded-xl hover:bg-red-50 hover:text-red-600 transition-all"
+                                        >
+                                          <Trash2 size={16} />
+                                        </button>
+                                      </>
+                                    )}
+                                  </>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
+        )}
 
         {activeTab === 'classrooms' && (
           <div className="space-y-8">
