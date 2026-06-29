@@ -390,8 +390,9 @@ export const AdminDashboard: React.FC = () => {
   const filteredUsers = allUsers.filter(u => {
     const displayName = u.displayName || '';
     const email = u.email || '';
-    const matchesSearch = displayName.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          email.toLowerCase().includes(searchTerm.toLowerCase());
+    const search = searchTerm.toLowerCase().trim();
+    const matchesSearch = displayName.toLowerCase().includes(search) || 
+                          email.toLowerCase().includes(search);
     if (!matchesSearch) return false;
     
     // Global filter from sidebar/header
@@ -416,8 +417,9 @@ export const AdminDashboard: React.FC = () => {
   const filteredLogins = allUsers.filter(u => {
     const displayName = u.displayName || '';
     const email = u.email || '';
-    const matchesSearch = displayName.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          email.toLowerCase().includes(searchTerm.toLowerCase());
+    const search = searchTerm.toLowerCase().trim();
+    const matchesSearch = displayName.toLowerCase().includes(search) || 
+                          email.toLowerCase().includes(search);
     if (!matchesSearch) return false;
     
     // Global filter from sidebar/header: do NOT filter out pending users or users without a classroom
